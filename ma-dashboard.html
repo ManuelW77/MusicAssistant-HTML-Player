@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Musik</title>
 <style>
 /* ------------------------------------------------------------------
@@ -65,12 +68,34 @@ html, body {
   padding: 14px 16px; display: none;
   max-height: 260px; overflow-y: auto; -webkit-overflow-scrolling: touch;
 }
-.station-menu .menu-head {
+.station-menu .menu-head, .group-menu .menu-head {
   font-family: "Avenir Next Condensed", sans-serif; font-size: 12px; letter-spacing: 1.6px;
   text-transform: uppercase; color: #6f7472; margin-bottom: 10px;
 }
 .station-menu .station { display: block; border-bottom: 0; margin: 0 -4px; padding: 10px 4px; border-top: 1px solid #26292a; }
 .station-menu .station:first-child { border-top: 0; }
+
+.group-menu {
+  position: absolute; top: 68px; z-index: 25;
+  background: #1f2221; border-bottom: 1px solid #3a3e3f;
+  padding: 14px 16px; display: none;
+  max-height: 320px; max-width: 360px; overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+.group-menu .menu-head:not(:first-child) { margin-top: 14px; }
+.group-row {
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  padding: 10px 4px; border-top: 1px solid #26292a;
+}
+.group-row:first-child { border-top: 0; }
+.group-row .nm { -webkit-flex: 1; flex: 1; font-size: 15px; color: #e8e4da; }
+.group-row .gbtn {
+  font-family: "Avenir Next Condensed", sans-serif; font-size: 13px; padding: 6px 12px;
+  border: 1px solid #3a3e3f; background: #26292a; color: #e8e4da; cursor: pointer;
+  -webkit-appearance: none; border-radius: 0;
+}
+.group-row .gbtn.add { color: #f0a32e; border-color: #f0a32e; }
+.group-row .gbtn.remove { color: #c0553c; border-color: #c0553c; }
+.group-menu .hint { padding: 4px 4px 6px; }
 
 /* Verbindungsampel ganz rechts in der Kopfzeile */
 .link { width: 9px; height: 9px; border-radius: 5px; background: #c0553c; margin-left: 14px; -webkit-flex-shrink: 0; flex-shrink: 0; }
@@ -245,6 +270,11 @@ html, body {
 }
 .row .more:active { background: #26292a; color: #f0a32e; }
 .hint { color: #6f7472; font-size: 15px; padding: 24px 4px; line-height: 1.5; }
+.pl-sec {
+  color: #8e9391; font-size: 12px; font-weight: bold; text-transform: uppercase;
+  letter-spacing: 0.04em; padding: 10px 4px 6px 4px;
+}
+.pl-sec:first-child { padding-top: 4px; }
 .queue-banner {
   background: #202322; border: 1px solid #3a3e3f; border-left: 3px solid #f0a32e;
   padding: 10px 14px; margin: 4px 0 10px 0; font-size: 13px; color: #c5c9c7; line-height: 1.4;
@@ -283,7 +313,10 @@ html, body {
 .toast.err { background: #c0553c; color: #f4efe6; }
 .toast.on { display: block; }
 </style>
-<script src="ma-env.js"></script>
+<script>
+  /* Dynamischer Cache-Buster für ma-env.js */
+  document.write('<script src="ma-env.js?v=' + (new Date().getTime()) + '"><\/script>');
+</script>
 </head>
 <body>
 
@@ -299,6 +332,13 @@ html, body {
   <div class="station-menu" id="stationMenu" style="display:none;">
     <div class="menu-head">Alle Player</div>
     <div id="stationMenuList"></div>
+  </div>
+
+  <div class="group-menu" id="groupMenu" style="display:none;">
+    <div class="menu-head" id="groupMenuHead">Gruppe</div>
+    <div id="groupMenuActive"></div>
+    <div class="menu-head" id="groupMenuOthersHead">Weitere Geräte</div>
+    <div id="groupMenuOthers"></div>
   </div>
 
   <div class="main">
@@ -347,8 +387,8 @@ html, body {
     <div class="right">
       <div class="tabs">
         <div class="tab on" data-tab="queue">Warteschlange</div>
-        <div class="tab" data-tab="search">Suchen</div>
         <div class="tab" data-tab="library">Bibliothek</div>
+        <div class="tab" data-tab="search">Suchen</div>
       </div>
 
       <div id="paneSearch" style="display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-flex:1;flex:1;min-height:0;">
@@ -747,6 +787,7 @@ var volDragging = false;
 var volMembersOpen = false;
 var memberVolDragging = {};
 var stationMenuOpen = false;
+var groupMenuOpen = false;
 
 function activeQueue() {
   return activeQueueId ? queues[activeQueueId] : null;
@@ -760,7 +801,7 @@ function playerName(id) {
   return p.display_name || p.name || id;
 }
 
-function getGroupMembers(id) {
+function resolveGroupMembers(id, filterVolume) {
   var p = players[id];
   if (!p) { return []; }
   var ids = p.group_members || p.group_childs || [];
@@ -770,21 +811,26 @@ function getGroupMembers(id) {
     if (mid === id) { continue; }
     var mp = players[mid];
     if (!mp) { continue; }
-    if (mp.volume_control === 'none') { continue; }
-    if (mp.supported_features && mp.supported_features.indexOf('volume_set') < 0) { continue; }
+    if (filterVolume) {
+      if (mp.volume_control === 'none') { continue; }
+      if (mp.supported_features && mp.supported_features.indexOf('volume_set') < 0) { continue; }
+    }
     out.push(mid);
   }
   if (!out.length) {
     for (var k in players) {
       if (!players.hasOwnProperty(k)) { continue; }
       var cp = players[k];
-      if (cp.volume_control === 'none') { continue; }
-      if (cp.supported_features && cp.supported_features.indexOf('volume_set') < 0) { continue; }
+      if (filterVolume) {
+        if (cp.volume_control === 'none') { continue; }
+        if (cp.supported_features && cp.supported_features.indexOf('volume_set') < 0) { continue; }
+      }
       if ((cp.synced_to === id || cp.active_group === id) && k !== id) { out.push(k); }
     }
   }
   return out;
 }
+function getGroupMembers(id) { return resolveGroupMembers(id, true); }
 
 /* ==================================================================
    START NACH ANMELDUNG
@@ -842,6 +888,8 @@ function rebuildPlayerOrder() {
 function selectPlayer(id, force) {
   if (!id) { return; }
   if (id === activeId && !force) { return; }
+  groupMenuOpen = false;
+  $('groupMenu').style.display = 'none';
   activeId = id;
   activeQueueId = null;
   buildStations();
@@ -900,7 +948,20 @@ function buildStations() {
   for (var j = 0; j < topIds.length; j++) {
     (function (pid) {
       var el = stationRow(pid, false);
-      el.onclick = function () { selectPlayer(pid); };
+      el.onclick = function () {
+        if (pid === activeId) {
+          groupMenuOpen = !groupMenuOpen;
+          stationMenuOpen = false;
+          $('stationMenu').style.display = 'none';
+          $('stationMore').className = 'station-more';
+          $('groupMenu').style.display = groupMenuOpen ? 'block' : 'none';
+          if (groupMenuOpen) { renderGroupMenu(); positionGroupMenu(el); }
+        } else {
+          groupMenuOpen = false;
+          $('groupMenu').style.display = 'none';
+          selectPlayer(pid);
+        }
+      };
       box.appendChild(el);
     })(topIds[j]);
   }
@@ -934,11 +995,13 @@ function handleEvent(msg) {
       if (pid === activeId) { renderNow(); }
       else if ($('volMembers').style.display === 'block' && $('mvol_' + pid)) { renderVolumeMembers(); }
       buildStations();
+      if (groupMenuOpen) { renderGroupMenu(); positionGroupMenu(activeChipEl()); }
     }
     return;
   }
   if (t === 'player_removed') {
     if (msg.object_id) { delete players[msg.object_id]; rebuildPlayerOrder(); buildStations(); }
+    if (groupMenuOpen) { renderGroupMenu(); positionGroupMenu(activeChipEl()); }
     return;
   }
   if (t === 'queue_updated' || t === 'queue_added') {
@@ -1157,6 +1220,110 @@ function renderVolumeMembers() {
   }
 }
 
+function renderGroupMenu() {
+  var leader = activeId;
+  var lp = players[leader];
+  var activeBox = $('groupMenuActive');
+  var othersBox = $('groupMenuOthers');
+  var othersHead = $('groupMenuOthersHead');
+  activeBox.innerHTML = '';
+  othersBox.innerHTML = '';
+
+  if (!lp) {
+    groupMenuOpen = false;
+    $('groupMenu').style.display = 'none';
+    return;
+  }
+
+  setText($('groupMenuHead'), 'Gruppe: ' + playerName(leader));
+
+  var members = resolveGroupMembers(leader, false);
+  if (!members.length) {
+    activeBox.innerHTML = '<div class="hint">Keine weiteren Geräte in der Gruppe.</div>';
+  } else {
+    for (var i = 0; i < members.length; i++) {
+      (function (mid) {
+        var row = document.createElement('div');
+        row.className = 'group-row';
+        var nm = document.createElement('div');
+        nm.className = 'nm';
+        setText(nm, playerName(mid));
+        var btn = document.createElement('button');
+        btn.className = 'gbtn remove';
+        setText(btn, 'Entfernen');
+        btn.onclick = function () { cmd('players/cmd/ungroup', { player_id: mid }); };
+        row.appendChild(nm);
+        row.appendChild(btn);
+        activeBox.appendChild(row);
+      })(members[i]);
+    }
+  }
+
+  var canGroup = lp.supported_features && lp.supported_features.indexOf('set_members') >= 0;
+  if (!canGroup) {
+    othersHead.style.display = 'none';
+    othersBox.innerHTML = '<div class="hint">Dieser Player unterstützt keine Gruppierung.</div>';
+    return;
+  }
+
+  var already = {};
+  already[leader] = true;
+  for (var j = 0; j < members.length; j++) { already[members[j]] = true; }
+  var candidates = [];
+  for (var k = 0; k < playerIds.length; k++) {
+    var pid = playerIds[k];
+    if (already[pid]) { continue; }
+    var cp = players[pid];
+    if (!cp) { continue; }
+    if (!cp.supported_features || cp.supported_features.indexOf('set_members') < 0) { continue; }
+    candidates.push(pid);
+  }
+
+  if (!candidates.length) {
+    othersHead.style.display = 'none';
+    othersBox.innerHTML = '';
+    return;
+  }
+
+  othersHead.style.display = 'block';
+  for (var m = 0; m < candidates.length; m++) {
+    (function (cid) {
+      var row = document.createElement('div');
+      row.className = 'group-row';
+      var nm = document.createElement('div');
+      nm.className = 'nm';
+      setText(nm, playerName(cid));
+      var btn = document.createElement('button');
+      btn.className = 'gbtn add';
+      setText(btn, 'Hinzufügen');
+      btn.onclick = function () { cmd('players/cmd/group', { player_id: cid, target_player: leader }); };
+      row.appendChild(nm);
+      row.appendChild(btn);
+      othersBox.appendChild(row);
+    })(candidates[m]);
+  }
+}
+
+function activeChipEl() {
+  var chips = $('stations').getElementsByClassName('station');
+  for (var i = 0; i < chips.length; i++) {
+    if ((' ' + chips[i].className + ' ').indexOf(' on ') >= 0) { return chips[i]; }
+  }
+  return null;
+}
+
+function positionGroupMenu(chipEl) {
+  if (!chipEl) { return; }
+  var menu = $('groupMenu');
+  var rect = chipEl.getBoundingClientRect();
+  var scrollX = window.pageXOffset || document.documentElement.scrollLeft || 0;
+  var left = rect.left + scrollX;
+  var maxLeft = document.documentElement.clientWidth - menu.offsetWidth - 12;
+  if (left > maxLeft) { left = maxLeft; }
+  if (left < 0) { left = 0; }
+  menu.style.left = left + 'px';
+}
+
 function wireNowNav(mi) {
   var aEl = $('artist'), alEl = $('album');
   aEl.className = 'sub';
@@ -1305,8 +1472,23 @@ function renderPlaylistList(loading) {
     box.innerHTML = '<div class="hint">Noch keine Playlist vorhanden.</div>';
     return;
   }
+  var sawFav = false;
+  var sawAll = false;
   for (var i = 0; i < userPlaylists.length; i++) {
     (function (pl) {
+      if (pl.favorite && !sawFav) {
+        sawFav = true;
+        var favSec = document.createElement('div');
+        favSec.className = 'pl-sec';
+        setText(favSec, 'Favoriten');
+        box.appendChild(favSec);
+      } else if (!pl.favorite && !sawAll) {
+        sawAll = true;
+        var allSec = document.createElement('div');
+        allSec.className = 'pl-sec';
+        setText(allSec, 'Alle Playlists');
+        box.appendChild(allSec);
+      }
       var btn = document.createElement('button');
       btn.className = 'act';
       setText(btn, pl.name || 'Playlist');
@@ -2276,18 +2458,22 @@ $('stationMore').onclick = function () {
   stationMenuOpen = !stationMenuOpen;
   $('stationMenu').style.display = stationMenuOpen ? 'block' : 'none';
   $('stationMore').className = 'station-more' + (stationMenuOpen ? ' on' : '');
+  if (stationMenuOpen) { groupMenuOpen = false; $('groupMenu').style.display = 'none'; }
 };
 
 document.addEventListener('click', function (e) {
-  if (!stationMenuOpen) { return; }
+  if (!stationMenuOpen && !groupMenuOpen) { return; }
   var n = e.target;
   while (n && n !== document.body) {
-    if (n.id === 'stationMenu' || n.id === 'stationMore') { return; }
+    if (n.id === 'stationMenu' || n.id === 'stationMore' || n.id === 'groupMenu') { return; }
+    if (n.className && typeof n.className === 'string' && (' ' + n.className + ' ').indexOf(' station ') >= 0) { return; }
     n = n.parentNode;
   }
   stationMenuOpen = false;
   $('stationMenu').style.display = 'none';
   $('stationMore').className = 'station-more';
+  groupMenuOpen = false;
+  $('groupMenu').style.display = 'none';
 }, false);
 
 /* ==================================================================

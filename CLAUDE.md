@@ -9,7 +9,7 @@ Ein selbst gehosteter HTML-Dashboard-Controller für [Music Assistant](https://w
 ## Zweck und Funktionsumfang
 
 - **Direkte MA-Steuerung** über WebSocket (`/ws`) mit Long-Lived-Token-Authentifizierung.
-- **Player-Auswahl** als stationsartige Leiste oben (alle oder eine konfigurierbare Whitelist).
+- **Player-Auswahl** als stationsartige Leiste oben (alle oder eine konfigurierbare Whitelist). Ein Klick auf die bereits aktive Station öffnet ein Gruppierungs-Menü: aktuelle Gruppenmitglieder sind dort entfernbar, weitere gruppierfähige Player können hinzugefügt werden.
 - **Now-Playing-Anzeige** mit Cover, Titel, Interpret, Album, Fortschrittsbalken, Transport, Shuffle/Repeat und Lautstärke. Bei Gruppen- oder Sync-Playern lässt sich ein aufklappbares Menü öffnen, um die Lautstärke jedes einzelnen Gruppenmitglieds zu regeln.
 - **Suche** über Titel, Alben, Interpreten, Playlists, Radio, Podcasts, Hörbücher.
 - **Navigation** innerhalb der Suchergebnisse: Interpret → Alben + Top-Titel, Album → Titel, Playlist → Titel, Podcast → Folgen.
@@ -81,6 +81,9 @@ Fehlt `ma-env.js` oder einzelne Werte, greifen Fallback-Defaults im Hauptscript.
 - `players/cmd/seek` – Position im aktuellen Titel setzen.
 - `players/cmd/volume_set`, `players/cmd/group_volume` – Lautstärke; bei Sync-Gruppen ist `volume_level` null, dann `group_volume` verwenden.
 - Für einzelne Mitglieder eines Gruppenplayers wird `players/cmd/volume_set` mit der jeweiligen `player_id` des Mitglieds gesendet.
+- `players/cmd/group` – Player zu einer Gruppe hinzufügen (Parameter: `player_id` des hinzuzufügenden Players, `target_player` als Gruppenleiter).
+- `players/cmd/ungroup` – Player aus jeder Sync-/Gruppenzugehörigkeit entfernen (Parameter: `player_id`).
+- Ob ein Player überhaupt gruppierbar ist, zeigt das Feature-Flag `set_members` in `supported_features`.
 
 ### Queue
 
@@ -157,6 +160,7 @@ Falls `current_media.image_url` aus einer falsch konfigurierten internen `base_u
 - Im „Zur Playlist hinzufügen“-Sheet sortiert `loadUserPlaylists()` Favoriten nach oben und ordnet die restlichen Playlists alphabetisch nach Namen.
 - Der Bibliothek-Tab ruft `music/<type>s/library_items` ohne `favorite`-Filter auf, damit jedes Item das `favorite`-Flag mitbringt und `mediaRow()` das Herz anzeigen kann. Ein Toggle-Chip „Nur Favoriten“ filtert die Liste client-seitig.
 - Gruppen-Member-Lautstärke: Mitglieder werden aus `group_members`/`group_childs` bzw. als Fallback über `synced_to`/`active_group` ermittelt. Jedes Mitglied, das `supported_features` enthält, bekommt einen eigenen Slider unter dem Haupt-Volume-Slider.
+- Gruppierungs-Menü: `resolveGroupMembers(id, filterVolume)` ist die gemeinsame Basis für Gruppenmitglieder – mit `filterVolume=true` liefert `getGroupMembers()` nur lautstärkefähige Mitglieder (für die Lautstärke-Slider), mit `filterVolume=false` liefert `renderGroupMenu()` alle Mitglieder (für Anzeige/Entfernen). Kandidaten zum Hinzufügen werden aus `playerIds` gefiltert nach `set_members` in `supported_features`.
 - UI-Anpassungen nur mit ES5-tauglichem CSS und JS vornehmen.
 - Keine externen Bibliotheken einbinden; die Datei soll weiterhin eigenständig lauffähig bleiben.
 
