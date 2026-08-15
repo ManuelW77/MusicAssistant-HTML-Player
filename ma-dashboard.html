@@ -52,6 +52,26 @@ html, body {
 .station.live .dot { background: #f0a32e; }
 .station.off { color: #55595a; }
 
+.station-more {
+  font-family: "Avenir Next Condensed", sans-serif; font-size: 13px; color: #8e9391;
+  padding: 10px 12px 8px; cursor: pointer; border-bottom: 3px solid transparent;
+  -webkit-flex-shrink: 0; flex-shrink: 0; margin-right: 6px; -webkit-user-select: none; user-select: none;
+}
+.station-more.on { color: #f0a32e; border-bottom-color: #f0a32e; }
+
+.station-menu {
+  position: absolute; top: 68px; left: 0; right: 0; z-index: 25;
+  background: #1f2221; border-bottom: 1px solid #3a3e3f;
+  padding: 14px 16px; display: none;
+  max-height: 260px; overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+.station-menu .menu-head {
+  font-family: "Avenir Next Condensed", sans-serif; font-size: 12px; letter-spacing: 1.6px;
+  text-transform: uppercase; color: #6f7472; margin-bottom: 10px;
+}
+.station-menu .station { display: block; border-bottom: 0; margin: 0 -4px; padding: 10px 4px; border-top: 1px solid #26292a; }
+.station-menu .station:first-child { border-top: 0; }
+
 /* Verbindungsampel ganz rechts in der Kopfzeile */
 .link { width: 9px; height: 9px; border-radius: 5px; background: #c0553c; margin-left: 14px; -webkit-flex-shrink: 0; flex-shrink: 0; }
 .link.on { background: #4e8a5c; }
@@ -225,6 +245,11 @@ html, body {
 }
 .row .more:active { background: #26292a; color: #f0a32e; }
 .hint { color: #6f7472; font-size: 15px; padding: 24px 4px; line-height: 1.5; }
+.queue-banner {
+  background: #202322; border: 1px solid #3a3e3f; border-left: 3px solid #f0a32e;
+  padding: 10px 14px; margin: 4px 0 10px 0; font-size: 13px; color: #c5c9c7; line-height: 1.4;
+}
+.queue-banner strong { color: #f0a32e; font-weight: normal; }
 
 /* ---------- Aktionsblatt ---------- */
 .sheetbg { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10,11,11,0.82); display: none; z-index: 20; }
@@ -264,10 +289,16 @@ html, body {
 
 <div class="wrap">
 
-  <div class="top">
+  <div class="top" id="topBar" style="position:relative;z-index:26;">
     <div class="brand">Musik</div>
     <div class="stations" id="stations"></div>
+    <div class="station-more" id="stationMore">&#10095;</div>
     <div class="link" id="link"></div>
+  </div>
+
+  <div class="station-menu" id="stationMenu" style="display:none;">
+    <div class="menu-head">Alle Player</div>
+    <div id="stationMenuList"></div>
   </div>
 
   <div class="main">
@@ -315,8 +346,8 @@ html, body {
 
     <div class="right">
       <div class="tabs">
-        <div class="tab on" data-tab="search">Suchen</div>
-        <div class="tab" data-tab="queue">Warteschlange</div>
+        <div class="tab on" data-tab="queue">Warteschlange</div>
+        <div class="tab" data-tab="search">Suchen</div>
         <div class="tab" data-tab="library">Bibliothek</div>
       </div>
 
@@ -715,6 +746,7 @@ var curDur = 0;
 var volDragging = false;
 var volMembersOpen = false;
 var memberVolDragging = {};
+var stationMenuOpen = false;
 
 function activeQueue() {
   return activeQueueId ? queues[activeQueueId] : null;
@@ -830,25 +862,60 @@ function selectPlayer(id, force) {
 /* ==================================================================
    KOPFZEILE
    ================================================================== */
+function isPlayerPlaying(pid) {
+  var p = players[pid] || {};
+  var q = queues[pid];
+  var st = (q && q.state) || p.state;
+  return st === 'playing';
+}
+
+function stationRow(pid, inMenu) {
+  var p = players[pid] || {};
+  var q = queues[pid];
+  var st = (q && q.state) || p.state;
+  var el = document.createElement('div');
+  var cls = 'station';
+  if (pid === activeId) { cls += ' on'; }
+  if (st === 'playing') { cls += ' live'; }
+  if (p.powered === false) { cls += ' off'; }
+  el.className = cls;
+  el.innerHTML = '<span class="dot"></span>';
+  el.appendChild(document.createTextNode(playerName(pid)));
+  return el;
+}
+
 function buildStations() {
   var box = $('stations');
+  var menuBox = $('stationMenuList');
   box.innerHTML = '';
+  menuBox.innerHTML = '';
+
+  var topIds = [];
   for (var i = 0; i < playerIds.length; i++) {
+    var pid = playerIds[i];
+    if (pid === activeId || isPlayerPlaying(pid)) { topIds.push(pid); }
+  }
+  if (!topIds.length && activeId && players[activeId]) { topIds.push(activeId); }
+
+  for (var j = 0; j < topIds.length; j++) {
     (function (pid) {
-      var p = players[pid] || {};
-      var q = queues[pid];
-      var st = (q && q.state) || p.state;
-      var el = document.createElement('div');
-      var cls = 'station';
-      if (pid === activeId) { cls += ' on'; }
-      if (st === 'playing') { cls += ' live'; }
-      if (p.powered === false) { cls += ' off'; }
-      el.className = cls;
-      el.innerHTML = '<span class="dot"></span>';
-      el.appendChild(document.createTextNode(playerName(pid)));
+      var el = stationRow(pid, false);
       el.onclick = function () { selectPlayer(pid); };
       box.appendChild(el);
-    })(playerIds[i]);
+    })(topIds[j]);
+  }
+
+  for (var k = 0; k < playerIds.length; k++) {
+    (function (pid) {
+      var el = stationRow(pid, true);
+      el.onclick = function () {
+        stationMenuOpen = false;
+        $('stationMenu').style.display = 'none';
+        $('stationMore').className = 'station-more';
+        selectPlayer(pid);
+      };
+      menuBox.appendChild(el);
+    })(playerIds[k]);
   }
 }
 
@@ -880,6 +947,7 @@ function handleEvent(msg) {
       if (msg.data.queue_id === activeQueueId) {
         adoptQueue(msg.data);
         renderNow();
+        if (currentTab === 'queue') { loadQueue(); }
       }
       buildStations();
     }
@@ -2067,7 +2135,7 @@ function loadLibrary(typeKey) {
 /* ==================================================================
    WARTESCHLANGE
    ================================================================== */
-var currentTab = 'search';
+var currentTab = 'queue';
 
 var TABS = {
   search:  { pane: 'paneSearch',  init: null },
@@ -2113,11 +2181,26 @@ function loadQueue() {
       return;
     }
     box.innerHTML = '';
+    var q = activeQueue();
+    if (q && q.radio_mode) {
+      var rBanner = document.createElement('div');
+      rBanner.className = 'queue-banner';
+      rBanner.innerHTML = '&#128251; <strong>Radiomodus aktiv:</strong> Music Assistant generiert Folgetitel fortlaufend dynamisch.';
+      box.appendChild(rBanner);
+    } else if (q && q.shuffle_enabled) {
+      var sBanner = document.createElement('div');
+      sBanner.className = 'queue-banner';
+      sBanner.innerHTML = '&#128256; <strong>Zufallswiedergabe aktiv:</strong> Titelreihenfolge wird dynamisch gemischt.';
+      box.appendChild(sBanner);
+    }
+
     if (!items || !items.length) {
-      box.innerHTML = '<div class="hint">Warteschlange ist leer.</div>';
+      var emptyHint = document.createElement('div');
+      emptyHint.className = 'hint';
+      setText(emptyHint, 'Warteschlange ist leer.');
+      box.appendChild(emptyHint);
       return;
     }
-    var q = activeQueue();
     var curId = q && q.current_item ? q.current_item.queue_item_id : null;
     for (var i = 0; i < items.length; i++) {
       box.appendChild(queueRow(items[i], i, curId === items[i].queue_item_id));
@@ -2189,6 +2272,24 @@ $('volExpHit').onclick = function () {
   renderVolumeMembers();
 };
 
+$('stationMore').onclick = function () {
+  stationMenuOpen = !stationMenuOpen;
+  $('stationMenu').style.display = stationMenuOpen ? 'block' : 'none';
+  $('stationMore').className = 'station-more' + (stationMenuOpen ? ' on' : '');
+};
+
+document.addEventListener('click', function (e) {
+  if (!stationMenuOpen) { return; }
+  var n = e.target;
+  while (n && n !== document.body) {
+    if (n.id === 'stationMenu' || n.id === 'stationMore') { return; }
+    n = n.parentNode;
+  }
+  stationMenuOpen = false;
+  $('stationMenu').style.display = 'none';
+  $('stationMore').className = 'station-more';
+}, false);
+
 /* ==================================================================
    START
    ================================================================== */
@@ -2197,6 +2298,8 @@ setLink(false);
 probeClock();
 connect();
 setInterval(tick, 500);
+
+switchTab('queue');
 
 /* Scroll-Gummiband des Fensters unterdrücken, Listen scrollen weiter */
 document.addEventListener('touchmove', function (e) {

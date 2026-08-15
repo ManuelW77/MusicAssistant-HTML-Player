@@ -91,6 +91,7 @@ Fehlt `ma-env.js` oder einzelne Werte, greifen Fallback-Defaults im Hauptscript.
 - `player_queues/play_index` – zu einem bestimmten Queue-Eintrag springen.
 - `player_queues/shuffle`, `player_queues/repeat` – Shuffle/Repeat steuern.
 - `player_queues/clear`, `player_queues/delete_item` – Queue leeren / Eintrag entfernen.
+- Bei aktivem `shuffle_enabled` oder `radio_mode` zeigt die Queue einen Hinweis-Banner an, dass Titel dynamisch gemischt oder generiert werden.
 
 ### Medien
 
