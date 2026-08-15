@@ -136,6 +136,17 @@ html, body {
 .vol input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -12px; border-radius: 13px; background: #f0a32e; }
 .vol .val { font-family: "Avenir Next Condensed", sans-serif; font-size: 13px; color: #8e9391; width: 40px; text-align: right; }
 
+.vol-exp { margin-top: 10px; }
+.vol-exp-hit {
+  font-family: "Avenir Next Condensed", sans-serif; font-size: 12px; letter-spacing: 1.3px; text-transform: uppercase;
+  color: #8e9391; cursor: pointer; padding: 7px 0; border-top: 1px solid #3a3e3f;
+  text-align: center; -webkit-user-select: none; user-select: none;
+}
+.vol-exp-hit.on { color: #f0a32e; }
+.vol-members { padding: 8px 0 4px; }
+.vol-members .vol { margin-top: 0; margin-bottom: 8px; }
+.vol-members .vol .lbl { width: 90px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
 /* ---------- Suche / Blättern ---------- */
 .tabs { display: -webkit-flex; display: flex; border-bottom: 1px solid #3a3e3f; margin-bottom: 16px; }
 .tab {
@@ -160,6 +171,8 @@ html, body {
   color: #8e9391; border: 1px solid #3a3e3f; padding: 7px 13px; margin: 0 7px 7px 0; cursor: pointer;
 }
 .filt.on { color: #1a1c1b; background: #e8e4da; border-color: #e8e4da; }
+.filt.fav { border-color: #5e4640; color: #c48b80; }
+.filt.fav.on { color: #1a1c1b; background: #f0a32e; border-color: #f0a32e; }
 
 /* Zurück-Leiste über der Trefferliste (Interpret > Album > …) */
 .crumbs {
@@ -293,6 +306,10 @@ html, body {
         <div class="lbl">Vol</div>
         <input type="range" id="vol" min="0" max="100" value="0">
         <div class="val" id="volVal">0</div>
+      </div>
+      <div class="vol-exp" id="volExp" style="display:none;">
+        <div class="vol-exp-hit" id="volExpHit">Gruppen-Lautstärke &#9660;</div>
+        <div class="vol-members" id="volMembers" style="display:none;"></div>
       </div>
     </div>
 
@@ -696,6 +713,8 @@ var anchorAt = 0;        /* Server-Unixzeit des Ankers */
 var isPlaying = false;
 var curDur = 0;
 var volDragging = false;
+var volMembersOpen = false;
+var memberVolDragging = {};
 
 function activeQueue() {
   return activeQueueId ? queues[activeQueueId] : null;
@@ -707,6 +726,32 @@ function playerName(id) {
   var p = players[id];
   if (!p) { return id; }
   return p.display_name || p.name || id;
+}
+
+function getGroupMembers(id) {
+  var p = players[id];
+  if (!p) { return []; }
+  var ids = p.group_members || p.group_childs || [];
+  var out = [];
+  for (var i = 0; i < ids.length; i++) {
+    var mid = ids[i];
+    if (mid === id) { continue; }
+    var mp = players[mid];
+    if (!mp) { continue; }
+    if (mp.volume_control === 'none') { continue; }
+    if (mp.supported_features && mp.supported_features.indexOf('volume_set') < 0) { continue; }
+    out.push(mid);
+  }
+  if (!out.length) {
+    for (var k in players) {
+      if (!players.hasOwnProperty(k)) { continue; }
+      var cp = players[k];
+      if (cp.volume_control === 'none') { continue; }
+      if (cp.supported_features && cp.supported_features.indexOf('volume_set') < 0) { continue; }
+      if ((cp.synced_to === id || cp.active_group === id) && k !== id) { out.push(k); }
+    }
+  }
+  return out;
 }
 
 /* ==================================================================
@@ -815,10 +860,12 @@ function handleEvent(msg) {
 
   if (t === 'player_updated' || t === 'player_added') {
     if (msg.data && msg.data.player_id) {
-      var known = !!players[msg.data.player_id];
-      players[msg.data.player_id] = msg.data;
+      var pid = msg.data.player_id;
+      var known = !!players[pid];
+      players[pid] = msg.data;
       if (!known) { rebuildPlayerOrder(); }
-      if (msg.data.player_id === activeId) { renderNow(); }
+      if (pid === activeId) { renderNow(); }
+      else if ($('volMembers').style.display === 'block' && $('mvol_' + pid)) { renderVolumeMembers(); }
       buildStations();
     }
     return;
@@ -930,6 +977,8 @@ function renderNow() {
     setText($('volVal'), vi);
   }
 
+  renderVolumeMembers();
+
   /* Favoritenknopf */
   var uri = media.uri || (mi && mi.uri) || null;
   if (uri !== npUri) {
@@ -949,6 +998,95 @@ function renderNow() {
   }
 
   tick();
+}
+
+function renderVolumeMembers() {
+  var members = activeId ? getGroupMembers(activeId) : [];
+  var wrap = $('volExp');
+  var hit = $('volExpHit');
+  var box = $('volMembers');
+
+  if (!members.length) {
+    wrap.style.display = 'none';
+    box.style.display = 'none';
+    box.innerHTML = '';
+    volMembersOpen = false;
+    hit.className = 'vol-exp-hit';
+    setText(hit, 'Gruppen-Lautstärke ▼');
+    return;
+  }
+
+  wrap.style.display = 'block';
+  hit.className = 'vol-exp-hit' + (volMembersOpen ? ' on' : '');
+  setText(hit, 'Gruppen-Lautstärke ' + (volMembersOpen ? '▲' : '▼'));
+  box.style.display = volMembersOpen ? 'block' : 'none';
+
+  /* Nur bei Bedarf neu aufbauen, damit Slider nicht während der Interaktion
+     ersetzt werden. Einfacher Weg: alle nicht gerade gezogenen Member neu malen. */
+  var dirty = false;
+  for (var i = 0; i < members.length; i++) {
+    var mid = members[i];
+    if (memberVolDragging[mid]) { continue; }
+    var mp = players[mid];
+    var lvl = 0;
+    if (mp && mp.volume_level !== null && mp.volume_level !== undefined) { lvl = Math.round(mp.volume_level); }
+    var row = document.getElementById('mvol_' + mid);
+    if (!row) {
+      dirty = true;
+      break;
+    }
+    var slider = row.getElementsByTagName('input')[0];
+    var val = row.getElementsByClassName('val')[0];
+    if (slider && parseInt(slider.value, 10) !== lvl) { slider.value = lvl; }
+    if (val) { setText(val, lvl); }
+  }
+
+  if (!dirty && box.hasChildNodes()) { return; }
+
+  box.innerHTML = '';
+  for (var j = 0; j < members.length; j++) {
+    var m = members[j];
+    var mp2 = players[m];
+    var lvl2 = 0;
+    if (mp2 && mp2.volume_level !== null && mp2.volume_level !== undefined) { lvl2 = Math.round(mp2.volume_level); }
+
+    var row2 = document.createElement('div');
+    row2.className = 'vol';
+    row2.id = 'mvol_' + m;
+    row2.setAttribute('data-mid', m);
+
+    var lbl = document.createElement('div');
+    lbl.className = 'lbl';
+    setText(lbl, playerName(m));
+
+    var inp = document.createElement('input');
+    inp.type = 'range';
+    inp.min = 0;
+    inp.max = 100;
+    inp.value = lvl2;
+
+    var vdiv = document.createElement('div');
+    vdiv.className = 'val';
+    setText(vdiv, lvl2);
+
+    row2.appendChild(lbl);
+    row2.appendChild(inp);
+    row2.appendChild(vdiv);
+    box.appendChild(row2);
+
+    (function (memberId, slider) {
+      slider.addEventListener('touchstart', function () { memberVolDragging[memberId] = true; }, false);
+      slider.addEventListener('mousedown', function () { memberVolDragging[memberId] = true; }, false);
+      slider.addEventListener('input', function () {
+        var r = $('mvol_' + memberId);
+        if (r) { setText(r.getElementsByClassName('val')[0], slider.value); }
+      }, false);
+      slider.addEventListener('change', function () {
+        memberVolDragging[memberId] = false;
+        cmd('players/cmd/volume_set', { player_id: memberId, volume_level: parseInt(slider.value, 10) });
+      }, false);
+    })(m, inp);
+  }
 }
 
 function wireNowNav(mi) {
@@ -1060,6 +1198,14 @@ function loadUserPlaylists(cb) {
   }, function (err, items) {
     if (err) { cb(err, null); return; }
     userPlaylists = items || [];
+    userPlaylists.sort(function (a, b) {
+      var af = a.favorite ? 1 : 0;
+      var bf = b.favorite ? 1 : 0;
+      if (af !== bf) { return bf - af; }
+      var an = (a.name || '').toLowerCase();
+      var bn = (b.name || '').toLowerCase();
+      return an < bn ? -1 : (an > bn ? 1 : 0);
+    });
     cb(null, userPlaylists);
   });
 }
@@ -1849,10 +1995,25 @@ var LIB_TYPES = [
   { k: 'audiobook', l: 'Hörbücher',   cmd: 'music/audiobooks/library_items', type: 'audiobook' }
 ];
 var currentLibType = 'playlist';
+var libFavOnly = false;
 
 function buildLibFilters() {
   var box = $('libFilters');
   box.innerHTML = '';
+
+  /* Favoriten-Filter als erster Chip */
+  (function () {
+    var el = document.createElement('div');
+    el.className = 'filt fav' + (libFavOnly ? ' on' : '');
+    el.innerHTML = '&#9829; Nur Favoriten';
+    el.onclick = function () {
+      libFavOnly = !libFavOnly;
+      buildLibFilters();
+      loadLibrary(currentLibType);
+    };
+    box.appendChild(el);
+  })();
+
   for (var i = 0; i < LIB_TYPES.length; i++) {
     (function (def) {
       var el = document.createElement('div');
@@ -1877,7 +2038,7 @@ function loadLibrary(typeKey) {
   var box = $('libResults');
   box.innerHTML = '<div class="hint">Wird geladen …</div>';
   var want = typeKey;
-  send(def.cmd, { limit: CFG.LIST_LIMIT, offset: 0, favorite: false, order_by: 'name' }, function (err, items) {
+  send(def.cmd, { limit: CFG.LIST_LIMIT, offset: 0, order_by: 'name' }, function (err, items) {
     if (want !== currentLibType) { return; }
     if (err) {
       box.innerHTML = '';
@@ -1888,8 +2049,13 @@ function loadLibrary(typeKey) {
       return;
     }
     box.innerHTML = '';
+    if (libFavOnly) {
+      var filtered = [];
+      for (var f = 0; f < items.length; f++) { if (items[f].favorite) { filtered.push(items[f]); } }
+      items = filtered;
+    }
     if (!items || !items.length) {
-      box.innerHTML = '<div class="hint">Keine Einträge vorhanden.</div>';
+      box.innerHTML = '<div class="hint">' + (libFavOnly ? 'Keine Favoriten vorhanden.' : 'Keine Einträge vorhanden.') + '</div>';
       return;
     }
     for (var j = 0; j < items.length; j++) {
@@ -2016,6 +2182,11 @@ $('bQueueClear').onclick = function () {
     toast('Warteschlange geleert');
     setTimeout(loadQueue, 500);
   });
+};
+
+$('volExpHit').onclick = function () {
+  volMembersOpen = !volMembersOpen;
+  renderVolumeMembers();
 };
 
 /* ==================================================================

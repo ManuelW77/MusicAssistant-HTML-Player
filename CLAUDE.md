@@ -10,13 +10,13 @@ Ein selbst gehosteter HTML-Dashboard-Controller für [Music Assistant](https://w
 
 - **Direkte MA-Steuerung** über WebSocket (`/ws`) mit Long-Lived-Token-Authentifizierung.
 - **Player-Auswahl** als stationsartige Leiste oben (alle oder eine konfigurierbare Whitelist).
-- **Now-Playing-Anzeige** mit Cover, Titel, Interpret, Album, Fortschrittsbalken, Transport, Shuffle/Repeat und Lautstärke.
+- **Now-Playing-Anzeige** mit Cover, Titel, Interpret, Album, Fortschrittsbalken, Transport, Shuffle/Repeat und Lautstärke. Bei Gruppen- oder Sync-Playern lässt sich ein aufklappbares Menü öffnen, um die Lautstärke jedes einzelnen Gruppenmitglieds zu regeln.
 - **Suche** über Titel, Alben, Interpreten, Playlists, Radio, Podcasts, Hörbücher.
 - **Navigation** innerhalb der Suchergebnisse: Interpret → Alben + Top-Titel, Album → Titel, Playlist → Titel, Podcast → Folgen.
 - **Detail-Tabs mit Lazy Loading** in der Interpretansicht: „Top-Titel“ und „Alben“ werden erst beim Öffnen des Tabs geladen.
-- **Bibliothek-Tab** auf der Startseite: schneller Zugriff auf gespeicherte Playlists, Interpreten, Alben, Titel, Radio, Podcasts und Hörbücher.
+- **Bibliothek-Tab** auf der Startseite: schneller Zugriff auf gespeicherte Playlists, Interpreten, Alben, Titel, Radio, Podcasts und Hörbücher – inklusive Favoriten-Herz-Anzeige. Über einen Toggle-Chip "Nur Favoriten" lassen sich alle oder nur favorisierte Einträge anzeigen.
 - **Aktionsblatt** pro Medium: Jetzt abspielen, Als Nächstes, Hinten anhängen, Zur Playlist hinzufügen, Favorit setzen/entfernen, Öffnen/Interpret/Album.
-- **Add to Playlist** sowohl aus dem Aktionsblatt als auch vom Now-Playing-Cover aus.
+- **Add to Playlist** sowohl aus dem Aktionsblatt als auch vom Now-Playing-Cover aus. Im Sheet werden favorisierte Playlists zuerst angezeigt, danach alle anderen alphabetisch nach Name sortiert.
 - **Automix / Smart Crossfade** ein/aus schalten; bei laufender Wiedergabe wird dazu kurz pausiert und fortgesetzt.
 - **Warteschlange** anzeigen, direkten Titel anwählen, Einzelpositionen löschen, Queue leeren.
 - **Favoriten-Herz** sowohl im Now-Playing-Bereich als auch in jeder Detailansicht.
@@ -80,6 +80,7 @@ Fehlt `ma-env.js` oder einzelne Werte, greifen Fallback-Defaults im Hauptscript.
 - `players/cmd/next`, `players/cmd/previous` – Titel wechseln.
 - `players/cmd/seek` – Position im aktuellen Titel setzen.
 - `players/cmd/volume_set`, `players/cmd/group_volume` – Lautstärke; bei Sync-Gruppen ist `volume_level` null, dann `group_volume` verwenden.
+- Für einzelne Mitglieder eines Gruppenplayers wird `players/cmd/volume_set` mit der jeweiligen `player_id` des Mitglieds gesendet.
 
 ### Queue
 
@@ -152,6 +153,9 @@ Falls `current_media.image_url` aus einer falsch konfigurierten internen `base_u
 - Neue Medientypen oder API-Endpunkte in `NAVIGABLE`, `GROUPS`, `LIB_TYPES` und den Detail-Funktionen (`openArtist`, `openAlbum`, `openPlaylist`, `openPodcast`) ergänzen.
 - Tabs in Detailansichten werden im View-Objekt als `tabs: [{ key, label, load }]`, `activeTab` und `cache` modelliert.
 - „Zur Playlist hinzufügen“ und Automix erweitern das Aktionsblatt bzw. die Toggle-Leiste; neue UI-Elemente müssen ES5-tauglich bleiben.
+- Im „Zur Playlist hinzufügen“-Sheet sortiert `loadUserPlaylists()` Favoriten nach oben und ordnet die restlichen Playlists alphabetisch nach Namen.
+- Der Bibliothek-Tab ruft `music/<type>s/library_items` ohne `favorite`-Filter auf, damit jedes Item das `favorite`-Flag mitbringt und `mediaRow()` das Herz anzeigen kann. Ein Toggle-Chip „Nur Favoriten“ filtert die Liste client-seitig.
+- Gruppen-Member-Lautstärke: Mitglieder werden aus `group_members`/`group_childs` bzw. als Fallback über `synced_to`/`active_group` ermittelt. Jedes Mitglied, das `supported_features` enthält, bekommt einen eigenen Slider unter dem Haupt-Volume-Slider.
 - UI-Anpassungen nur mit ES5-tauglichem CSS und JS vornehmen.
 - Keine externen Bibliotheken einbinden; die Datei soll weiterhin eigenständig lauffähig bleiben.
 
