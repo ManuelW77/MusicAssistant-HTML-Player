@@ -1,0 +1,2043 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Musik</title>
+<style>
+/* ------------------------------------------------------------------
+   Bewusst ES5 / CSS-Level-3: keine CSS-Variablen, kein Grid, keine
+   Webfonts. Alles, was hier steht, rendert Safari 9 (iOS 9.3).
+   Schriften kommen aus iOS selbst: Futura + Avenir Next.
+------------------------------------------------------------------ */
+* { -webkit-box-sizing: border-box; box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: #1a1c1b;
+  color: #e8e4da;
+  font-family: "Avenir Next", "Avenir", "Helvetica Neue", Helvetica, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: rgba(240,163,46,0.25);
+  overflow: hidden;
+}
+
+.wrap { height: 100%; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; }
+
+/* ---------- Kopfzeile: Stationsleiste ---------- */
+.top {
+  height: 68px;
+  border-bottom: 1px solid #3a3e3f;
+  background: #202322;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  padding: 0 16px;
+}
+.brand {
+  font-family: "Futura-CondensedExtraBold", "Futura", "Avenir Next Condensed", "Helvetica Neue", sans-serif;
+  font-size: 21px; letter-spacing: 3px; text-transform: uppercase;
+  color: #f0a32e; margin-right: 20px; white-space: nowrap;
+}
+.stations { -webkit-flex: 1; flex: 1; display: -webkit-flex; display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.station {
+  font-family: "Avenir Next Condensed", "Avenir Next", sans-serif;
+  font-size: 13px; letter-spacing: 1.4px; text-transform: uppercase;
+  color: #8e9391; padding: 10px 15px 8px; margin-right: 6px;
+  border-bottom: 3px solid transparent; white-space: nowrap; cursor: pointer;
+}
+.station.on { color: #e8e4da; border-bottom-color: #f0a32e; }
+.station .dot { display: inline-block; width: 6px; height: 6px; border-radius: 3px; background: #3a3e3f; margin-right: 7px; vertical-align: middle; }
+.station.live .dot { background: #f0a32e; }
+.station.off { color: #55595a; }
+
+/* Verbindungsampel ganz rechts in der Kopfzeile */
+.link { width: 9px; height: 9px; border-radius: 5px; background: #c0553c; margin-left: 14px; -webkit-flex-shrink: 0; flex-shrink: 0; }
+.link.on { background: #4e8a5c; }
+
+/* ---------- Hauptbereich ---------- */
+.main { -webkit-flex: 1; flex: 1; display: -webkit-flex; display: flex; min-height: 0; }
+.left { width: 430px; padding: 20px; border-right: 1px solid #3a3e3f; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; }
+.right { -webkit-flex: 1; flex: 1; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; min-width: 0; padding: 20px; }
+
+/* ---------- Now Playing ---------- */
+.cover {
+  width: 220px; height: 220px; background: #26292a; border: 1px solid #3a3e3f;
+  margin: 0 auto 20px; overflow: hidden; position: relative;
+}
+.cover img { width: 100%; height: 100%; display: block; }
+.cover .ph {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  font-family: "Futura", sans-serif; font-size: 46px; color: #3a3e3f;
+  text-align: center; line-height: 220px;
+}
+
+/* Titelzeile trägt rechts den Favoritenknopf */
+.titlerow { display: -webkit-flex; display: flex; -webkit-align-items: flex-start; align-items: flex-start; }
+.title {
+  -webkit-flex: 1; flex: 1; min-width: 0;
+  font-family: "Futura-CondensedExtraBold", "Futura", "Avenir Next Condensed", "Helvetica Neue", sans-serif;
+  font-size: 27px; line-height: 1.15; letter-spacing: 0.4px; margin-bottom: 7px;
+  max-height: 62px; overflow: hidden;
+}
+.heart {
+  width: 44px; height: 44px; margin: -6px -8px 0 6px; -webkit-flex-shrink: 0; flex-shrink: 0;
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center; cursor: pointer;
+}
+.heart span { font-size: 25px; line-height: 25px; color: #55595a; }
+.heart.on span { color: #f0a32e; }
+.heart.busy span { color: #8e9391; }
+.heart.hide { display: none; }
+
+.sub { font-size: 15px; color: #8e9391; margin-bottom: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.sub.album { color: #6f7472; font-size: 13px; margin-bottom: 18px; }
+.sub.tap { color: #8e9391; cursor: pointer; }
+.sub.tap:active { color: #f0a32e; }
+
+/* ---------- Signature: Skalenanzeige wie am Tuner ---------- */
+.dial { margin-bottom: 6px; }
+.dial-track {
+  position: relative; height: 26px; border-bottom: 1px solid #3a3e3f; cursor: pointer;
+  background-image: -webkit-repeating-linear-gradient(left, #3a3e3f 0, #3a3e3f 1px, transparent 1px, transparent 12px);
+  background-image: repeating-linear-gradient(to right, #3a3e3f 0, #3a3e3f 1px, transparent 1px, transparent 12px);
+  background-position: bottom left; background-repeat: repeat-x; background-size: 12px 9px;
+}
+.dial-fill { position: absolute; left: 0; bottom: 0; height: 3px; background: #f0a32e; width: 0; }
+.dial-needle { position: absolute; bottom: -3px; width: 2px; height: 20px; background: #f0a32e; margin-left: -1px; left: 0; }
+.dial-times {
+  display: -webkit-flex; display: flex; -webkit-justify-content: space-between; justify-content: space-between;
+  font-family: "Avenir Next Condensed", sans-serif; font-size: 12px; letter-spacing: 1px; color: #6f7472; margin-top: 5px;
+}
+
+/* ---------- Transport ---------- */
+.transport { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center; margin: 20px 0 16px; }
+.btn {
+  width: 64px; height: 64px; border-radius: 32px; border: 1px solid #3a3e3f; background: #26292a;
+  margin: 0 9px; display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center; cursor: pointer;
+}
+.btn.big { width: 84px; height: 84px; border-radius: 42px; border-color: #f0a32e; }
+.btn:active { background: #32363a; }
+.btn svg { display: block; }
+.toggles { display: -webkit-flex; display: flex; -webkit-justify-content: center; justify-content: center; margin-bottom: 18px; }
+.tgl {
+  font-family: "Avenir Next Condensed", sans-serif; font-size: 12px; letter-spacing: 1.4px; text-transform: uppercase;
+  color: #6f7472; border: 1px solid #3a3e3f; padding: 8px 16px; margin: 0 5px; cursor: pointer;
+}
+.tgl.on { color: #1a1c1b; background: #f0a32e; border-color: #f0a32e; }
+
+/* ---------- Lautstärke ---------- */
+.vol { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; margin-top: auto; }
+.vol .lbl { font-family: "Avenir Next Condensed", sans-serif; font-size: 12px; letter-spacing: 1.4px; color: #6f7472; width: 34px; }
+.vol input[type=range] { -webkit-appearance: none; -webkit-flex: 1; flex: 1; height: 30px; background: transparent; }
+.vol input[type=range]::-webkit-slider-runnable-track { height: 3px; background: #3a3e3f; }
+.vol input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -12px; border-radius: 13px; background: #f0a32e; }
+.vol .val { font-family: "Avenir Next Condensed", sans-serif; font-size: 13px; color: #8e9391; width: 40px; text-align: right; }
+
+/* ---------- Suche / Blättern ---------- */
+.tabs { display: -webkit-flex; display: flex; border-bottom: 1px solid #3a3e3f; margin-bottom: 16px; }
+.tab {
+  font-family: "Avenir Next Condensed", sans-serif; font-size: 13px; letter-spacing: 1.6px; text-transform: uppercase;
+  color: #6f7472; padding: 0 2px 11px; margin-right: 26px; border-bottom: 3px solid transparent; cursor: pointer;
+}
+.tab.on { color: #e8e4da; border-bottom-color: #f0a32e; }
+
+.searchbar { display: -webkit-flex; display: flex; margin-bottom: 12px; }
+.searchbar input[type=text] {
+  -webkit-flex: 1; flex: 1; -webkit-appearance: none; border: 1px solid #3a3e3f; background: #26292a;
+  color: #e8e4da; font-size: 18px; font-family: inherit; padding: 13px 15px; border-radius: 0;
+}
+.searchbar input[type=text]:focus { outline: none; border-color: #f0a32e; }
+.searchbar button {
+  -webkit-appearance: none; border: 0; background: #f0a32e; color: #1a1c1b; font-family: "Avenir Next Condensed", sans-serif;
+  font-size: 14px; letter-spacing: 1.6px; text-transform: uppercase; padding: 0 24px; margin-left: 8px; border-radius: 0; cursor: pointer;
+}
+.filters { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; margin-bottom: 14px; }
+.filt {
+  font-family: "Avenir Next Condensed", sans-serif; font-size: 12px; letter-spacing: 1.3px; text-transform: uppercase;
+  color: #8e9391; border: 1px solid #3a3e3f; padding: 7px 13px; margin: 0 7px 7px 0; cursor: pointer;
+}
+.filt.on { color: #1a1c1b; background: #e8e4da; border-color: #e8e4da; }
+
+/* Zurück-Leiste über der Trefferliste (Interpret > Album > …) */
+.crumbs {
+  display: none; -webkit-align-items: center; align-items: center;
+  border-bottom: 1px solid #3a3e3f; padding-bottom: 10px; margin-bottom: 12px;
+}
+.crumbs.on { display: -webkit-flex; display: flex; }
+.back {
+  font-family: "Avenir Next Condensed", sans-serif; font-size: 13px; letter-spacing: 1.4px; text-transform: uppercase;
+  color: #f0a32e; border: 1px solid #3a3e3f; padding: 9px 15px; margin-right: 14px; white-space: nowrap; cursor: pointer;
+}
+.back:active { background: #26292a; }
+.crumbtxt { min-width: 0; -webkit-flex: 1; flex: 1; }
+.crumbtxt .n { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crumbtxt .s { font-size: 13px; color: #8e9391; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crumbact {
+  font-family: "Avenir Next Condensed", sans-serif; font-size: 12px; letter-spacing: 1.3px; text-transform: uppercase;
+  color: #1a1c1b; background: #f0a32e; padding: 9px 15px; margin-left: 10px; white-space: nowrap; cursor: pointer;
+}
+.crumbheart { width: 44px; height: 40px; margin-left: 6px; text-align: center; line-height: 40px; cursor: pointer; }
+.crumbheart span { font-size: 23px; color: #55595a; }
+.crumbheart.on span { color: #f0a32e; }
+
+.list { -webkit-flex: 1; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.group {
+  font-family: "Avenir Next Condensed", sans-serif; font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+  color: #f0a32e; padding: 14px 0 7px; border-bottom: 1px solid #3a3e3f; margin-bottom: 4px;
+}
+.row { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; border-bottom: 1px solid #26292a; }
+.rowmain {
+  -webkit-flex: 1; flex: 1; min-width: 0; display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  padding: 9px 4px; cursor: pointer;
+}
+.rowmain:active { background: #26292a; }
+.row .thumb { width: 46px; height: 46px; background: #26292a; margin-right: 13px; -webkit-flex-shrink: 0; flex-shrink: 0; }
+.row .thumb img { width: 46px; height: 46px; display: block; }
+.row .num {
+  width: 30px; -webkit-flex-shrink: 0; flex-shrink: 0; text-align: right; margin-right: 13px;
+  font-family: "Avenir Next Condensed", sans-serif; font-size: 14px; color: #6f7472;
+}
+.row .txt { min-width: 0; -webkit-flex: 1; flex: 1; }
+.row .n { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .s { font-size: 13px; color: #8e9391; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row.now .n { color: #f0a32e; }
+.row .fav { width: 22px; -webkit-flex-shrink: 0; flex-shrink: 0; text-align: center; color: #f0a32e; font-size: 15px; }
+.row .chev { width: 20px; -webkit-flex-shrink: 0; flex-shrink: 0; text-align: center; color: #55595a; font-size: 19px; }
+.row .more {
+  width: 52px; -webkit-flex-shrink: 0; flex-shrink: 0; text-align: center; color: #8e9391;
+  font-size: 21px; line-height: 1; padding: 16px 0; cursor: pointer;
+}
+.row .more:active { background: #26292a; color: #f0a32e; }
+.hint { color: #6f7472; font-size: 15px; padding: 24px 4px; line-height: 1.5; }
+
+/* ---------- Aktionsblatt ---------- */
+.sheetbg { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10,11,11,0.82); display: none; z-index: 20; }
+.sheetbg.on { display: block; }
+.sheet {
+  position: absolute; left: 50%; top: 50%; width: 460px; margin-left: -230px;
+  -webkit-transform: translateY(-50%); transform: translateY(-50%);
+  max-height: 92%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  background: #202322; border: 1px solid #3a3e3f; padding: 26px;
+}
+.sheet h2 { font-family: "Futura-CondensedExtraBold", "Futura", sans-serif; font-size: 23px; font-weight: normal; margin-bottom: 4px; }
+.sheet p { color: #8e9391; font-size: 14px; margin-bottom: 22px; }
+.act {
+  display: block; width: 100%; text-align: left; -webkit-appearance: none; border: 1px solid #3a3e3f; background: #26292a;
+  color: #e8e4da; font-family: inherit; font-size: 17px; padding: 16px 18px; margin-bottom: 10px; border-radius: 0; cursor: pointer;
+}
+.act.prim { background: #f0a32e; color: #1a1c1b; border-color: #f0a32e; }
+.act.fav { color: #f0a32e; }
+.act.ghost { background: transparent; color: #8e9391; text-align: center; margin-top: 6px; }
+.act.gone { display: none; }
+.sheet .sep {
+  font-family: "Avenir Next Condensed", sans-serif; font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+  color: #6f7472; padding: 14px 0 8px;
+}
+
+/* ---------- Meldung ---------- */
+.toast {
+  position: fixed; left: 50%; bottom: 26px; margin-left: -190px; width: 380px; text-align: center;
+  background: #f0a32e; color: #1a1c1b; font-size: 15px; padding: 13px; display: none; z-index: 30;
+}
+.toast.err { background: #c0553c; color: #f4efe6; }
+.toast.on { display: block; }
+</style>
+<script src="ma-env.js"></script>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="top">
+    <div class="brand">Musik</div>
+    <div class="stations" id="stations"></div>
+    <div class="link" id="link"></div>
+  </div>
+
+  <div class="main">
+
+    <div class="left">
+      <div class="cover" id="cover"><div class="ph">&#9835;</div></div>
+      <div class="titlerow">
+        <div class="title" id="title">Nichts ausgewählt</div>
+        <div class="heart hide" id="npAdd"><span>&#43;</span></div>
+        <div class="heart hide" id="npHeart"><span>&#9825;</span></div>
+      </div>
+      <div class="sub" id="artist"></div>
+      <div class="sub album" id="album"></div>
+
+      <div class="dial">
+        <div class="dial-track" id="dialTrack">
+          <div class="dial-fill" id="dialFill"></div>
+          <div class="dial-needle" id="dialNeedle"></div>
+        </div>
+        <div class="dial-times"><span id="tPos">0:00</span><span id="tDur">0:00</span></div>
+      </div>
+
+      <div class="transport">
+        <div class="btn" id="bPrev"></div>
+        <div class="btn big" id="bPlay"></div>
+        <div class="btn" id="bNext"></div>
+      </div>
+
+      <div class="toggles">
+        <div class="tgl" id="bShuffle">Zufall</div>
+        <div class="tgl" id="bRepeat">Wiederholen</div>
+        <div class="tgl" id="bAutomix">Automix</div>
+      </div>
+
+      <div class="vol">
+        <div class="lbl">Vol</div>
+        <input type="range" id="vol" min="0" max="100" value="0">
+        <div class="val" id="volVal">0</div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="tabs">
+        <div class="tab on" data-tab="search">Suchen</div>
+        <div class="tab" data-tab="queue">Warteschlange</div>
+        <div class="tab" data-tab="library">Bibliothek</div>
+      </div>
+
+      <div id="paneSearch" style="display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-flex:1;flex:1;min-height:0;">
+        <div id="searchTools">
+          <div class="searchbar">
+            <input type="text" id="q" placeholder="Titel, Interpret, Album, Playlist" autocorrect="off" autocapitalize="off">
+            <button id="bSearch">Suchen</button>
+          </div>
+          <div class="filters" id="filters"></div>
+        </div>
+        <div class="crumbs" id="crumbs">
+          <div class="back" id="bBack">&#8592; Zurück</div>
+          <div class="crumbtxt"><div class="n" id="crumbName"></div><div class="s" id="crumbSub"></div></div>
+          <div class="crumbheart" id="crumbHeart"><span>&#9825;</span></div>
+          <div class="crumbact" id="crumbPlay">Abspielen</div>
+        </div>
+        <div class="filters" id="viewTabs" style="display:none;"></div>
+        <div class="list" id="results"><div class="hint">Suchbegriff eingeben. Ein Treffer wird auf dem oben gewählten Player abgespielt.</div></div>
+      </div>
+
+      <div id="paneQueue" style="display:none;-webkit-flex:1;flex:1;min-height:0;-webkit-flex-direction:column;flex-direction:column;">
+        <div class="searchbar">
+          <button id="bQueueReload" style="margin-left:0">Aktualisieren</button>
+          <button id="bQueueClear" style="background:#26292a;color:#8e9391">Leeren</button>
+        </div>
+        <div class="list" id="queue"></div>
+      </div>
+
+      <div id="paneLibrary" style="display:none;-webkit-flex:1;flex:1;min-height:0;-webkit-flex-direction:column;flex-direction:column;">
+        <div class="filters" id="libFilters"></div>
+        <div class="list" id="libResults"><div class="hint">Medientyp oben wählen.</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="sheetbg" id="sheetbg">
+  <div class="sheet">
+    <h2 id="sheetTitle"></h2>
+    <p id="sheetSub"></p>
+    <button class="act prim" id="aNow">Jetzt abspielen</button>
+    <button class="act" id="aNext">Als Nächstes</button>
+    <button class="act" id="aAdd">Hinten anhängen</button>
+    <button class="act" id="aPlaylist">Zur Playlist</button>
+    <button class="act fav" id="aFav">Favorit …</button>
+    <div class="sep" id="aNavSep">Gehe zu</div>
+    <button class="act" id="aOpen">Öffnen</button>
+    <button class="act" id="aArtist">Interpret</button>
+    <button class="act" id="aAlbum">Album</button>
+    <button class="act ghost" id="aCancel">Abbrechen</button>
+  </div>
+</div>
+
+<div class="sheetbg" id="playlistSheetbg">
+  <div class="sheet">
+    <h2>Zur Playlist hinzufügen</h2>
+    <p id="playlistSheetSub"></p>
+    <div class="list" id="playlistList" style="max-height:320px;border:1px solid #3a3e3f;margin-bottom:12px;"></div>
+    <button class="act prim" id="plCreate">Neue Playlist …</button>
+    <button class="act ghost" id="plCancel">Abbrechen</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ==================================================================
+   KONFIGURATION
+   ==================================================================
+   Die sensiblen und gerätespezifischen Werte werden aus ma-env.js
+   geladen. Fehlt diese Datei oder einzelne Werte, greifen die folgenden
+   Fallback-Defaults.
+   ================================================================== */
+if (typeof CFG === 'undefined') { var CFG = {}; }
+if (!CFG.MA) { CFG.MA = ''; }
+if (!CFG.TOKEN) { CFG.TOKEN = ''; }
+if (!CFG.PLAYERS) { CFG.PLAYERS = []; }
+if (!CFG.DEFAULT_PLAYER) { CFG.DEFAULT_PLAYER = ''; }
+if (!CFG.SEARCH_LIMIT) { CFG.SEARCH_LIMIT = 12; }
+if (!CFG.LIST_LIMIT) { CFG.LIST_LIMIT = 200; }
+if (!CFG.IMG_COVER) { CFG.IMG_COVER = 512; }
+if (!CFG.IMG_THUMB) { CFG.IMG_THUMB = 160; }
+
+/* ==================================================================
+   HILFSFUNKTIONEN (ES5, kein fetch, keine Pfeilfunktionen)
+   ================================================================== */
+function $(id) { return document.getElementById(id); }
+
+function setText(el, s) {
+  el.innerHTML = '';
+  el.appendChild(document.createTextNode(s == null ? '' : String(s)));
+}
+
+function base() {
+  if (CFG.MA) { return CFG.MA.replace(/\/+$/, ''); }
+  return location.protocol + '//' + location.host;
+}
+
+var toastTimer = null;
+function toast(msg, isErr) {
+  var t = $('toast');
+  setText(t, msg);
+  t.className = 'toast on' + (isErr ? ' err' : '');
+  if (toastTimer) { clearTimeout(toastTimer); }
+  toastTimer = setTimeout(function () { t.className = 'toast'; }, 3200);
+}
+
+function fmt(sec) {
+  if (!sec && sec !== 0) { return '0:00'; }
+  sec = Math.max(0, Math.floor(sec));
+  var m = Math.floor(sec / 60), s = sec % 60;
+  return m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+/* ------------------------------------------------------------------
+   Serveruhr. MA verankert die Abspielposition an einem Server-Zeit-
+   stempel (elapsed_time_last_updated, Unix-Sekunden). Geht die Uhr des
+   iPads falsch, wäre der Fortschrittsbalken um genau diese Differenz
+   daneben - deshalb einmal beim Start den Date-Header des Servers
+   auswerten. /info schickt CORS-Header, der Date-Header ist ohne
+   Expose-Header lesbar.
+------------------------------------------------------------------ */
+var clockSkew = 0;
+function serverNow() { return Date.now() / 1000 + clockSkew; }
+
+function probeClock() {
+  var x = new XMLHttpRequest();
+  try { x.open('GET', base() + '/info', true); } catch (e) { return; }
+  x.onreadystatechange = function () {
+    if (x.readyState !== 4) { return; }
+    var d = null;
+    try { d = x.getResponseHeader('Date'); } catch (e2) { d = null; }
+    if (!d) { return; }
+    var t = Date.parse(d);
+    if (isNaN(t)) { return; }
+    clockSkew = t / 1000 - Date.now() / 1000;
+  };
+  try { x.send(null); } catch (e3) { /* egal, dann bleibt skew 0 */ }
+}
+
+/* ------------------------------------------------------------------
+   Bilder. MA liefert zu jedem Bild eine proxy_id; darüber skaliert der
+   Server das Bild auf die gewünschte Kantenlänge. Das ist auf einem
+   alten iPad der Unterschied zwischen flüssig und zäh - ein Original-
+   Cover kann mehrere Megabyte haben.
+------------------------------------------------------------------ */
+function firstImage(images) {
+  if (!images || !images.length) { return null; }
+  for (var i = 0; i < images.length; i++) {
+    if (images[i].type === 'thumb') { return images[i]; }
+  }
+  return images[0];
+}
+
+function pickImage(it) {
+  if (!it) { return null; }
+  if (it.image && typeof it.image === 'object') { return it.image; }
+  if (it.metadata && it.metadata.images && it.metadata.images.length) {
+    var m = firstImage(it.metadata.images);
+    if (m) { return m; }
+  }
+  if (it.album) { var a = pickImage(it.album); if (a) { return a; } }
+  if (it.artists && it.artists.length) {
+    for (var i = 0; i < it.artists.length; i++) {
+      var b = pickImage(it.artists[i]);
+      if (b) { return b; }
+    }
+  }
+  return null;
+}
+
+function imgUrl(it, size) {
+  var img = pickImage(it);
+  if (!img) { return null; }
+  if (img.proxy_id) { return base() + '/imageproxy/' + img.proxy_id + '?size=' + size + '&fmt=jpeg'; }
+  if (img.path && img.provider) {
+    return base() + '/imageproxy?path=' + encodeURIComponent(img.path) +
+           '&provider=' + encodeURIComponent(img.provider) +
+           '&size=' + size + '&fmt=jpeg';
+  }
+  if (img.path && img.path.indexOf('http') === 0 && img.remotely_accessible) { return img.path; }
+  return null;
+}
+
+/* current_media.image_url ist eine fertige URL, die MA aus seiner eigenen
+   base_url baut. Ist die intern falsch konfiguriert (klassischer Fall bei
+   Reverse-Proxy oder Docker-Bridge), zeigt sie ins Leere - deshalb den
+   Host für unsere eigenen Proxy-URLs auf CFG.MA umbiegen. */
+function fixUrl(u, size) {
+  if (!u) { return null; }
+  var i = u.indexOf('/imageproxy/');
+  if (i >= 0) {
+    var rest = u.substring(i);
+    if (size) { rest = rest.replace(/([?&])size=\d+/, '$1size=' + size); }
+    return base() + rest;
+  }
+  var q = u.indexOf('/imageproxy?');
+  if (q >= 0) {
+    var baseRest = u.substring(q);
+    if (size) { baseRest = baseRest.replace(/([?&])size=\d+/, '$1size=' + size); }
+    else { baseRest = baseRest.replace(/([?&])size=\d+/, '$1'); }
+    return base() + baseRest;
+  }
+  return u;
+}
+
+function artistsOf(it) {
+  if (!it) { return ''; }
+  if (it.artists && it.artists.length) {
+    var names = [];
+    for (var i = 0; i < it.artists.length; i++) {
+      names.push(it.artists[i].name || String(it.artists[i]));
+    }
+    return names.join(', ');
+  }
+  if (it.artist) { return it.artist.name || String(it.artist); }
+  if (it.owner) { return String(it.owner); }
+  return '';
+}
+
+function svgIcon(kind) {
+  var c = '#f0a32e', p;
+  if (kind === 'prev') { p = '<path d="M8 8v16h3V8H8zm4 8l12 8V8l-12 8z" fill="' + c + '"/>'; }
+  else if (kind === 'next') { p = '<path d="M24 8v16h-3V8h3zm-4 8L8 24V8l12 8z" fill="' + c + '"/>'; }
+  else if (kind === 'pause') { p = '<rect x="10" y="8" width="4.5" height="16" fill="' + c + '"/><rect x="17.5" y="8" width="4.5" height="16" fill="' + c + '"/>'; }
+  else { p = '<path d="M11 7l14 9-14 9V7z" fill="' + c + '"/>'; }
+  return '<svg width="32" height="32" viewBox="0 0 32 32">' + p + '</svg>';
+}
+
+/* ==================================================================
+   WEBSOCKET-CLIENT
+   ==================================================================
+   Bewusst WebSocket statt der POST-/api-Route: die JSON-RPC-Route von
+   MA schickt keine CORS-Header, ein XHR von einer fremden Herkunft
+   scheitert also schon am Preflight. WebSocket-Handshakes unterliegen
+   der Same-Origin-Policy nicht - damit läuft diese Datei von überall,
+   auch direkt von der Festplatte des iPads.
+   Nebeneffekt: Zustandsänderungen kommen als Ereignis herein, es muss
+   nichts mehr im Sekundentakt abgefragt werden.
+   ================================================================== */
+var ws = null;
+var wsOpen = false;
+var wsAuthed = false;
+var msgSeq = 0;
+var pending = {};      /* message_id -> { cb: fn, chunks: [] } */
+var backoff = 1000;
+var reconnectTimer = null;
+
+function wsUrl() {
+  var b = base();
+  return b.replace(/^http/, 'ws') + '/ws';
+}
+
+function setLink(on) {
+  $('link').className = 'link' + (on ? ' on' : '');
+}
+
+function connect() {
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  if (!CFG.TOKEN) {
+    toast('Zugangsdaten fehlen. ma-env.js anlegen.', true);
+    return;
+  }
+  if (!window.WebSocket) {
+    toast('Dieser Browser kann kein WebSocket', true);
+    return;
+  }
+  try {
+    ws = new WebSocket(wsUrl());
+  } catch (e) {
+    scheduleReconnect();
+    return;
+  }
+  ws.onopen = function () {
+    wsOpen = true;
+    /* Erstes Kommando muss laut MA-Protokoll auth sein. */
+    send('auth', { token: CFG.TOKEN }, function (err) {
+      if (err) {
+        wsAuthed = false;
+        toast('Anmeldung abgelehnt: ' + err, true);
+        return;
+      }
+      wsAuthed = true;
+      backoff = 1000;
+      setLink(true);
+      bootstrap();
+    });
+  };
+  ws.onmessage = function (ev) { onMessage(ev.data); };
+  ws.onclose = function () { teardown(); };
+  ws.onerror = function () { /* onclose folgt */ };
+}
+
+function teardown() {
+  wsOpen = false;
+  wsAuthed = false;
+  setLink(false);
+  var ids = [];
+  for (var k in pending) { if (pending.hasOwnProperty(k)) { ids.push(k); } }
+  for (var i = 0; i < ids.length; i++) {
+    var p = pending[ids[i]];
+    delete pending[ids[i]];
+    if (p.cb) { p.cb('Verbindung getrennt', null); }
+  }
+  scheduleReconnect();
+}
+
+function scheduleReconnect() {
+  if (reconnectTimer) { return; }
+  reconnectTimer = setTimeout(function () {
+    reconnectTimer = null;
+    connect();
+  }, backoff);
+  backoff = Math.min(backoff * 2, 20000);
+}
+
+function send(command, args, cb) {
+  if (!ws || ws.readyState !== 1) {
+    if (cb) { cb('Keine Verbindung', null); }
+    return;
+  }
+  msgSeq += 1;
+  var id = 'm' + msgSeq;
+  var msg = { message_id: id, command: command };
+  if (args) { msg.args = args; }
+  if (cb) { pending[id] = { cb: cb, chunks: null }; }
+  try {
+    ws.send(JSON.stringify(msg));
+  } catch (e) {
+    delete pending[id];
+    if (cb) { cb('Senden fehlgeschlagen', null); }
+  }
+}
+
+function onMessage(raw) {
+  var msg;
+  try { msg = JSON.parse(raw); } catch (e) { return; }
+
+  /* Ereignis-Nachricht */
+  if (msg.event) { handleEvent(msg); return; }
+
+  var id = msg.message_id;
+  if (!id) { return; }                 /* server_info u.ä. */
+  var p = pending[id];
+  if (!p) { return; }
+
+  if (msg.error_code !== undefined && msg.error_code !== null) {
+    delete pending[id];
+    p.cb(msg.details || ('Fehler ' + msg.error_code), null);
+    return;
+  }
+
+  /* Lange Listen kommen in Blöcken zu 500 mit partial:true herein und
+     werden erst von der letzten (partial-losen) Nachricht abgeschlossen. */
+  if (msg.partial) {
+    if (!p.chunks) { p.chunks = []; }
+    if (msg.result && msg.result.length) {
+      for (var i = 0; i < msg.result.length; i++) { p.chunks.push(msg.result[i]); }
+    }
+    return;
+  }
+
+  delete pending[id];
+  var result = msg.result;
+  if (p.chunks) {
+    if (result && result.length) {
+      for (var j = 0; j < result.length; j++) { p.chunks.push(result[j]); }
+    }
+    result = p.chunks;
+  }
+  p.cb(null, result);
+}
+
+/* ==================================================================
+   ZUSTAND
+   ================================================================== */
+var players = {};        /* player_id -> PlayerState */
+var playerIds = [];      /* Anzeigereihenfolge */
+var queues = {};         /* queue_id -> PlayerQueue */
+var activeId = null;     /* gewählter Player */
+var activeQueueId = null;
+
+/* Fortschritt wird lokal hochgezählt. MA schickt seit der Umstellung auf
+   "exakte" Zustandsänderungen keine Positions-Ticks mehr im Sekundentakt:
+   elapsed_time/elapsed_time_last_updated ändern sich nur noch bei Start,
+   Pause, Sprung und Titelwechsel. Wer den Wert bloß anzeigt, bekommt einen
+   stehenden Balken, der erst beim Pausieren nachspringt - genau das
+   Verhalten der alten HA-Fassung. Richtig ist: Anker merken und selbst
+   weiterzählen. */
+var anchorPos = 0;       /* Sekunden im Titel zum Ankerzeitpunkt */
+var anchorAt = 0;        /* Server-Unixzeit des Ankers */
+var isPlaying = false;
+var curDur = 0;
+var volDragging = false;
+
+function activeQueue() {
+  return activeQueueId ? queues[activeQueueId] : null;
+}
+function activePlayer() {
+  return activeId ? players[activeId] : null;
+}
+function playerName(id) {
+  var p = players[id];
+  if (!p) { return id; }
+  return p.display_name || p.name || id;
+}
+
+/* ==================================================================
+   START NACH ANMELDUNG
+   ================================================================== */
+function bootstrap() {
+  send('players/all', null, function (err, list) {
+    if (err) { toast('Player nicht abrufbar: ' + err, true); return; }
+    players = {};
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && list[i].player_id) { players[list[i].player_id] = list[i]; }
+    }
+    rebuildPlayerOrder();
+    if (!activeId || !players[activeId]) {
+      activeId = (CFG.DEFAULT_PLAYER && players[CFG.DEFAULT_PLAYER]) ? CFG.DEFAULT_PLAYER : playerIds[0] || null;
+    }
+    buildStations();
+    send('player_queues/all', null, function (err2, qlist) {
+      if (!err2 && qlist) {
+        queues = {};
+        for (var j = 0; j < qlist.length; j++) {
+          if (qlist[j] && qlist[j].queue_id) { queues[qlist[j].queue_id] = qlist[j]; }
+        }
+      }
+      selectPlayer(activeId, true);
+    });
+  });
+}
+
+function rebuildPlayerOrder() {
+  var ids = [];
+  var i;
+  if (CFG.PLAYERS && CFG.PLAYERS.length) {
+    for (i = 0; i < CFG.PLAYERS.length; i++) {
+      if (players[CFG.PLAYERS[i]]) { ids.push(CFG.PLAYERS[i]); }
+    }
+  } else {
+    for (var k in players) {
+      if (!players.hasOwnProperty(k)) { continue; }
+      var p = players[k];
+      if (p.available === false) { continue; }
+      if (p.enabled === false) { continue; }
+      if (p.hidden || p.hide_in_ui) { continue; }
+      /* In eine Gruppe eingebundene Player doppeln nur die Liste. */
+      if (p.synced_to) { continue; }
+      ids.push(k);
+    }
+    ids.sort(function (a, b) {
+      var na = playerName(a).toLowerCase(), nb = playerName(b).toLowerCase();
+      return na < nb ? -1 : (na > nb ? 1 : 0);
+    });
+  }
+  playerIds = ids;
+}
+
+function selectPlayer(id, force) {
+  if (!id) { return; }
+  if (id === activeId && !force) { return; }
+  activeId = id;
+  activeQueueId = null;
+  buildStations();
+  send('player_queues/get_active_queue', { player_id: id }, function (err, q) {
+    if (!err && q && q.queue_id) {
+      queues[q.queue_id] = q;
+      activeQueueId = q.queue_id;
+    } else {
+      activeQueueId = id;   /* MA benennt die Queue in aller Regel wie den Player */
+    }
+    adoptQueue(activeQueue());
+    renderNow();
+    loadSmartFadesMode();
+    if (currentTab === 'queue') { loadQueue(); }
+  });
+}
+
+/* ==================================================================
+   KOPFZEILE
+   ================================================================== */
+function buildStations() {
+  var box = $('stations');
+  box.innerHTML = '';
+  for (var i = 0; i < playerIds.length; i++) {
+    (function (pid) {
+      var p = players[pid] || {};
+      var q = queues[pid];
+      var st = (q && q.state) || p.state;
+      var el = document.createElement('div');
+      var cls = 'station';
+      if (pid === activeId) { cls += ' on'; }
+      if (st === 'playing') { cls += ' live'; }
+      if (p.powered === false) { cls += ' off'; }
+      el.className = cls;
+      el.innerHTML = '<span class="dot"></span>';
+      el.appendChild(document.createTextNode(playerName(pid)));
+      el.onclick = function () { selectPlayer(pid); };
+      box.appendChild(el);
+    })(playerIds[i]);
+  }
+}
+
+/* ==================================================================
+   EREIGNISSE
+   ================================================================== */
+function handleEvent(msg) {
+  var t = msg.event;
+
+  if (t === 'player_updated' || t === 'player_added') {
+    if (msg.data && msg.data.player_id) {
+      var known = !!players[msg.data.player_id];
+      players[msg.data.player_id] = msg.data;
+      if (!known) { rebuildPlayerOrder(); }
+      if (msg.data.player_id === activeId) { renderNow(); }
+      buildStations();
+    }
+    return;
+  }
+  if (t === 'player_removed') {
+    if (msg.object_id) { delete players[msg.object_id]; rebuildPlayerOrder(); buildStations(); }
+    return;
+  }
+  if (t === 'queue_updated' || t === 'queue_added') {
+    if (msg.data && msg.data.queue_id) {
+      queues[msg.data.queue_id] = msg.data;
+      if (msg.data.queue_id === activeQueueId) {
+        adoptQueue(msg.data);
+        renderNow();
+      }
+      buildStations();
+    }
+    return;
+  }
+  if (t === 'queue_time_updated') {
+    /* Kommt nur bei Sprüngen (Seek, Pufferkorrektur) - Anker neu setzen. */
+    if (msg.object_id === activeQueueId) {
+      anchorPos = typeof msg.data === 'number' ? msg.data : 0;
+      anchorAt = serverNow();
+      tick();
+    }
+    return;
+  }
+  if (t === 'queue_items_updated') {
+    if (msg.object_id === activeQueueId && currentTab === 'queue') { loadQueue(); }
+    return;
+  }
+  if (t === 'media_item_updated' || t === 'media_item_added' || t === 'media_item_deleted') {
+    /* Favoritenstand kann sich geändert haben - betrifft nur die Anzeige. */
+    refreshNowFav();
+    return;
+  }
+}
+
+/* Positionsanker aus einem Queue-Zustand übernehmen. */
+function adoptQueue(q) {
+  if (!q) {
+    anchorPos = 0; anchorAt = serverNow(); isPlaying = false; curDur = 0;
+    return;
+  }
+  anchorPos = q.elapsed_time || 0;
+  anchorAt = q.elapsed_time_last_updated || serverNow();
+  isPlaying = (q.state === 'playing');
+  curDur = (q.current_item && q.current_item.duration) || 0;
+}
+
+/* ==================================================================
+   NOW PLAYING
+   ================================================================== */
+var lastCoverSrc = '';
+var npUri = null;          /* URI des laufenden Titels, für den Favoritenknopf */
+var npFav = null;          /* aufgelöstes Bibliothekselement oder null */
+
+function renderNow() {
+  var p = activePlayer() || {};
+  var q = activeQueue();
+  var media = p.current_media || {};
+  var item = (q && q.current_item) || null;
+  var mi = (item && item.media_item) || null;
+
+  var title = media.title || (item && item.name) || '';
+  var artist = media.artist || artistsOf(mi) || '';
+  var albumName = media.album || (mi && mi.album && mi.album.name) || '';
+
+  if (!title) {
+    title = (p.powered === false) ? 'Aus' : 'Nichts läuft';
+  }
+  setText($('title'), title);
+  setText($('artist'), artist);
+  setText($('album'), albumName);
+
+  /* Interpret/Album antippbar machen, wenn wir ein echtes Medienobjekt haben */
+  wireNowNav(mi);
+
+  var pic = fixUrl(media.image_url, CFG.IMG_COVER) || imgUrl(mi, CFG.IMG_COVER) || imgUrl(media, CFG.IMG_COVER);
+  var cov = $('cover');
+  if (pic && lastCoverSrc !== pic) {
+    lastCoverSrc = pic;
+    var im = new Image();
+    im.onload = function () { cov.innerHTML = ''; cov.appendChild(im); };
+    im.onerror = function () { lastCoverSrc = ''; cov.innerHTML = '<div class="ph">&#9835;</div>'; };
+    im.src = pic;
+  } else if (!pic && lastCoverSrc !== '') {
+    lastCoverSrc = '';
+    cov.innerHTML = '<div class="ph">&#9835;</div>';
+  }
+
+  isPlaying = q ? (q.state === 'playing') : (p.state === 'playing');
+  $('bPlay').innerHTML = svgIcon(isPlaying ? 'pause' : 'play');
+
+  curDur = (item && item.duration) || media.duration || 0;
+
+  if (q) {
+    $('bShuffle').className = 'tgl' + (q.shuffle_enabled ? ' on' : '');
+    var rm = q.repeat_mode || 'off';
+    $('bRepeat').className = 'tgl' + (rm !== 'off' ? ' on' : '');
+    setText($('bRepeat'), rm === 'one' ? 'Titel wdh.' : 'Wiederholen');
+  }
+
+  var v = (p.volume_level === null || p.volume_level === undefined) ? p.group_volume : p.volume_level;
+  if (v !== null && v !== undefined && !volDragging) {
+    var vi = Math.round(v);
+    $('vol').value = vi;
+    setText($('volVal'), vi);
+  }
+
+  /* Favoritenknopf */
+  var uri = media.uri || (mi && mi.uri) || null;
+  if (uri !== npUri) {
+    npUri = uri;
+    npFav = null;
+    paintNowHeart();
+    refreshNowFav();
+  }
+
+  /* Playlist-Plus-Knopf */
+  var addBtn = $('npAdd');
+  if (npUri) {
+    addBtn.className = 'heart';
+    addBtn.innerHTML = '<span>&#43;</span>';
+  } else {
+    addBtn.className = 'heart hide';
+  }
+
+  tick();
+}
+
+function wireNowNav(mi) {
+  var aEl = $('artist'), alEl = $('album');
+  aEl.className = 'sub';
+  alEl.className = 'sub album';
+  aEl.onclick = null;
+  alEl.onclick = null;
+  if (!mi) { return; }
+  var art = (mi.artists && mi.artists.length) ? mi.artists[0] : (mi.artist || null);
+  if (art && art.item_id) {
+    aEl.className = 'sub tap';
+    aEl.onclick = function () { switchTab('search'); openArtist(art); };
+  }
+  if (mi.album && mi.album.item_id) {
+    alEl.className = 'sub album tap';
+    alEl.onclick = function () { switchTab('search'); openAlbum(mi.album); };
+  }
+}
+
+function tick() {
+  var dur = curDur || 0;
+  var pos = anchorPos + (isPlaying ? (serverNow() - anchorAt) : 0);
+  if (pos < 0) { pos = 0; }
+  if (dur > 0 && pos > dur) { pos = dur; }
+  var pct = dur > 0 ? (pos / dur) * 100 : 0;
+  $('dialFill').style.width = pct + '%';
+  $('dialNeedle').style.left = pct + '%';
+  setText($('tPos'), fmt(pos));
+  setText($('tDur'), fmt(dur));
+}
+
+/* ==================================================================
+   FAVORITEN
+   ==================================================================
+   MA ist hier absichtlich asymmetrisch:
+   - Setzen läuft über die URI (music/favorites/add_item) und legt das
+     Element nebenbei in der Bibliothek an.
+   - Entfernen braucht die Bibliotheks-ID (music/favorites/remove_item),
+     die es nur gibt, wenn das Element in der Bibliothek liegt.
+   Deshalb wird der Zustand immer über music/item_by_uri aufgelöst: das
+   liefert bevorzugt das Bibliothekselement mitsamt favorite-Flag.
+   ================================================================== */
+function resolveItem(uri, cb) {
+  if (!uri) { cb('Keine URI', null); return; }
+  send('music/item_by_uri', { uri: uri, allow_update_metadata: false }, cb);
+}
+
+function isLibraryItem(it) {
+  return !!(it && (it.provider === 'library' || it.provider === 'database'));
+}
+
+function toggleFav(it, cb) {
+  if (!it) { cb('Kein Element'); return; }
+  if (it.favorite && isLibraryItem(it)) {
+    send('music/favorites/remove_item', {
+      media_type: it.media_type,
+      library_item_id: it.item_id
+    }, function (err) { cb(err); });
+  } else {
+    send('music/favorites/add_item', { item: it.uri }, function (err) { cb(err); });
+  }
+}
+
+function paintNowHeart() {
+  var h = $('npHeart');
+  if (!npUri) { h.className = 'heart hide'; return; }
+  if (npFav === null) { h.className = 'heart busy'; h.innerHTML = '<span>&#9825;</span>'; return; }
+  h.className = 'heart' + (npFav.favorite ? ' on' : '');
+  h.innerHTML = '<span>' + (npFav.favorite ? '&#9829;' : '&#9825;') + '</span>';
+}
+
+function refreshNowFav() {
+  if (!npUri) { paintNowHeart(); return; }
+  var want = npUri;
+  resolveItem(want, function (err, it) {
+    if (want !== npUri) { return; }     /* Titel hat inzwischen gewechselt */
+    npFav = err ? null : it;
+    paintNowHeart();
+  });
+}
+
+$('npHeart').onclick = function () {
+  if (!npFav) { return; }
+  var was = !!npFav.favorite;
+  toggleFav(npFav, function (err) {
+    if (err) { toast('Favorit fehlgeschlagen: ' + err, true); return; }
+    toast(was ? 'Aus Favoriten entfernt' : 'Zu Favoriten hinzugefügt');
+    setTimeout(refreshNowFav, 600);
+  });
+};
+
+$('npAdd').onclick = function () {
+  if (!npUri) { return; }
+  openPlaylistSheet(npUri, $('title').textContent || 'Aktueller Titel');
+};
+
+/* ==================================================================
+   ZU PLAYLIST HINZUFÜGEN
+   ================================================================== */
+var userPlaylists = [];
+var playlistSheetTarget = null;
+
+function loadUserPlaylists(cb) {
+  send('music/playlists/library_items', {
+    limit: CFG.LIST_LIMIT,
+    offset: 0,
+    order_by: 'name'
+  }, function (err, items) {
+    if (err) { cb(err, null); return; }
+    userPlaylists = items || [];
+    cb(null, userPlaylists);
+  });
+}
+
+function openPlaylistSheet(uri, name) {
+  if (!uri) { toast('Kein Titel ausgewählt', true); return; }
+  playlistSheetTarget = { uri: uri, name: name || 'Titel' };
+  setText($('playlistSheetSub'), playlistSheetTarget.name);
+  $('playlistSheetbg').className = 'sheetbg on';
+  renderPlaylistList(true);
+  loadUserPlaylists(function (err) {
+    if (err) {
+      toast('Playlists konnten nicht geladen werden: ' + err, true);
+      renderPlaylistListError();
+      return;
+    }
+    renderPlaylistList(false);
+  });
+}
+
+function renderPlaylistList(loading) {
+  var box = $('playlistList');
+  box.innerHTML = '';
+  if (loading) {
+    box.innerHTML = '<div class="hint">Wird geladen …</div>';
+    return;
+  }
+  if (!userPlaylists.length) {
+    box.innerHTML = '<div class="hint">Noch keine Playlist vorhanden.</div>';
+    return;
+  }
+  for (var i = 0; i < userPlaylists.length; i++) {
+    (function (pl) {
+      var btn = document.createElement('button');
+      btn.className = 'act';
+      setText(btn, pl.name || 'Playlist');
+      btn.onclick = function () { addToPlaylist(pl); };
+      box.appendChild(btn);
+    })(userPlaylists[i]);
+  }
+}
+
+function renderPlaylistListError() {
+  var box = $('playlistList');
+  box.innerHTML = '<div class="hint">Fehler beim Laden.</div>';
+}
+
+function addToPlaylist(playlist) {
+  if (!playlistSheetTarget || !playlistSheetTarget.uri) { return; }
+  send('music/playlists/add_playlist_tracks', {
+    db_playlist_id: playlist.item_id,
+    uris: [playlistSheetTarget.uri]
+  }, function (err) {
+    if (err) {
+      toast('Hinzufügen fehlgeschlagen: ' + err, true);
+      return;
+    }
+    closePlaylistSheet();
+    toast('„' + playlistSheetTarget.name + '“ zu „' + (playlist.name || 'Playlist') + '“ hinzugefügt');
+  });
+}
+
+function createPlaylistAndAdd() {
+  var name = window.prompt('Name der neuen Playlist:', '');
+  if (!name) { return; }
+  send('music/playlists/create_playlist', { name: name }, function (err, pl) {
+    if (err) { toast('Playlist konnte nicht erstellt werden: ' + err, true); return; }
+    if (pl && pl.item_id) {
+      addToPlaylist(pl);
+    } else {
+      loadUserPlaylists(function () {
+        renderPlaylistList(false);
+        toast('Playlist erstellt. Bitte auswählen.');
+      });
+    }
+  });
+}
+
+function closePlaylistSheet() {
+  $('playlistSheetbg').className = 'sheetbg';
+  playlistSheetTarget = null;
+}
+
+$('plCreate').onclick = createPlaylistAndAdd;
+$('plCancel').onclick = closePlaylistSheet;
+$('playlistSheetbg').onclick = function (e) {
+  if (e.target === $('playlistSheetbg')) { closePlaylistSheet(); }
+};
+
+/* ==================================================================
+   AUTOMIX / SMART CROSSFADE
+   ==================================================================
+   MA speichert den Crossfade-Modus als Player-Config-Eintrag
+   smart_fades_mode. Während laufender Wiedergabe muss zum Aktivieren
+   kurz pausiert werden, damit der Audio-Stream den neuen Modus greift.
+   ================================================================== */
+var SMART_FADES_KEY = 'smart_fades_mode';
+var SMART_FADES_ON = 'smart_crossfade';
+var SMART_FADES_OFF = 'disabled';
+var smartFadesMode = SMART_FADES_OFF;
+
+function paintAutomix() {
+  $('bAutomix').className = 'tgl' + (smartFadesMode === SMART_FADES_ON ? ' on' : '');
+}
+
+function loadSmartFadesMode() {
+  if (!activeId) { smartFadesMode = SMART_FADES_OFF; paintAutomix(); return; }
+  send('config/players/get_value', { player_id: activeId, key: SMART_FADES_KEY }, function (err, val) {
+    if (err) { smartFadesMode = SMART_FADES_OFF; paintAutomix(); return; }
+    smartFadesMode = (val === SMART_FADES_ON) ? SMART_FADES_ON : SMART_FADES_OFF;
+    paintAutomix();
+  });
+}
+
+function toggleAutomix() {
+  if (!activeId) { toast('Kein Player gewählt', true); return; }
+
+  var wasPlaying = isPlaying;
+  var nextMode = smartFadesMode === SMART_FADES_ON ? SMART_FADES_OFF : SMART_FADES_ON;
+  var saveArgs = { player_id: activeId, values: {} };
+  saveArgs.values[SMART_FADES_KEY] = nextMode;
+
+  function saveAndResume() {
+    send('config/players/save', saveArgs, function (err) {
+      if (err) {
+        toast('Automix konnte nicht gesetzt werden: ' + err, true);
+        if (wasPlaying) { cmd('players/cmd/play_pause', { player_id: activeId }); }
+        return;
+      }
+      smartFadesMode = nextMode;
+      paintAutomix();
+      if (wasPlaying) {
+        setTimeout(function () {
+          cmd('players/cmd/play_pause', { player_id: activeId });
+        }, 300);
+      } else {
+        toast(nextMode === SMART_FADES_ON ? 'Automix ein' : 'Automix aus');
+      }
+    });
+  }
+
+  if (wasPlaying) {
+    cmd('players/cmd/play_pause', { player_id: activeId }, function () {
+      setTimeout(saveAndResume, 300);
+    });
+  } else {
+    saveAndResume();
+  }
+}
+
+$('bAutomix').onclick = toggleAutomix;
+
+/* ==================================================================
+   TRANSPORT
+   ==================================================================
+   players/cmd/* statt player_queues/*: die Player-Kommandos greifen auch
+   dann, wenn gerade eine fremde Quelle läuft (AirPlay, Spotify Connect),
+   und leiten intern an die Queue weiter, wenn eine aktiv ist.
+   ================================================================== */
+function cmd(command, args, after) {
+  send(command, args, function (err) {
+    if (err) { toast('Befehl fehlgeschlagen: ' + err, true); return; }
+    if (after) { after(); }
+  });
+}
+
+$('bPlay').onclick = function () {
+  if (!activeId) { return; }
+  /* Sofort umschalten, damit der Knopf nicht auf das Ereignis wartet. */
+  isPlaying = !isPlaying;
+  anchorPos = anchorPos + (isPlaying ? 0 : 0);
+  $('bPlay').innerHTML = svgIcon(isPlaying ? 'pause' : 'play');
+  cmd('players/cmd/play_pause', { player_id: activeId });
+};
+$('bNext').onclick = function () {
+  if (activeId) { cmd('players/cmd/next', { player_id: activeId }); }
+};
+$('bPrev').onclick = function () {
+  if (activeId) { cmd('players/cmd/previous', { player_id: activeId }); }
+};
+$('bShuffle').onclick = function () {
+  var q = activeQueue();
+  if (!q) { return; }
+  cmd('player_queues/shuffle', { queue_id: q.queue_id, shuffle_enabled: !q.shuffle_enabled });
+};
+$('bRepeat').onclick = function () {
+  var q = activeQueue();
+  if (!q) { return; }
+  var cur = q.repeat_mode || 'off';
+  var next = cur === 'off' ? 'all' : (cur === 'all' ? 'one' : 'off');
+  cmd('player_queues/repeat', { queue_id: q.queue_id, repeat_mode: next });
+};
+
+/* Tippen auf die Skala springt an die Stelle. */
+$('dialTrack').onclick = function (e) {
+  if (!activeId || !curDur) { return; }
+  var el = $('dialTrack');
+  var left = 0, n = el;
+  while (n) { left += n.offsetLeft; n = n.offsetParent; }
+  var x = (e.pageX !== undefined ? e.pageX : e.clientX) - left;
+  var pct = Math.max(0, Math.min(1, x / el.offsetWidth));
+  var target = Math.floor(curDur * pct);
+  anchorPos = target;
+  anchorAt = serverNow();
+  tick();
+  cmd('players/cmd/seek', { player_id: activeId, position: target });
+};
+
+$('vol').addEventListener('touchstart', function () { volDragging = true; }, false);
+$('vol').addEventListener('mousedown', function () { volDragging = true; }, false);
+$('vol').addEventListener('input', function () { setText($('volVal'), $('vol').value); }, false);
+$('vol').addEventListener('change', function () {
+  volDragging = false;
+  if (!activeId) { return; }
+  var p = activePlayer() || {};
+  var lvl = parseInt($('vol').value, 10);
+  /* Gruppenplayer melden volume_level: null - dort zählt group_volume. */
+  var useGroup = (p.volume_level === null || p.volume_level === undefined);
+  cmd(useGroup ? 'players/cmd/group_volume' : 'players/cmd/volume_set',
+      { player_id: activeId, volume_level: lvl });
+}, false);
+
+$('bPrev').innerHTML = svgIcon('prev');
+$('bNext').innerHTML = svgIcon('next');
+$('bPlay').innerHTML = svgIcon('play');
+
+/* ==================================================================
+   LISTEN-BAUSTEINE
+   ================================================================== */
+var NAVIGABLE = { artist: 1, album: 1, playlist: 1, podcast: 1, audiobook: 1 };
+
+function mediaRow(it, type, opts) {
+  opts = opts || {};
+  var mt = type || it.media_type || 'track';
+  var row = document.createElement('div');
+  row.className = 'row' + (opts.now ? ' now' : '');
+
+  var main = document.createElement('div');
+  main.className = 'rowmain';
+
+  if (opts.index) {
+    var num = document.createElement('div');
+    num.className = 'num';
+    setText(num, opts.index);
+    main.appendChild(num);
+  } else {
+    var th = document.createElement('div');
+    th.className = 'thumb';
+    var src = imgUrl(it, CFG.IMG_THUMB);
+    if (src) {
+      var im = document.createElement('img');
+      im.onerror = function () { th.innerHTML = '<div style="width:46px;height:46px;line-height:46px;text-align:center;font-size:20px;color:#3a3e3f;">&#9835;</div>'; };
+      im.src = src;
+      th.appendChild(im);
+    } else {
+      th.innerHTML = '<div style="width:46px;height:46px;line-height:46px;text-align:center;font-size:20px;color:#3a3e3f;">&#9835;</div>';
+    }
+    main.appendChild(th);
+  }
+
+  var txt = document.createElement('div');
+  txt.className = 'txt';
+  var n = document.createElement('div');
+  n.className = 'n';
+  setText(n, it.name || '—');
+  var s = document.createElement('div');
+  s.className = 's';
+  var subline = opts.sub;
+  if (subline === undefined) {
+    subline = artistsOf(it);
+    if (!subline && it.provider) { subline = String(it.provider); }
+  }
+  setText(s, subline);
+  txt.appendChild(n);
+  txt.appendChild(s);
+  main.appendChild(txt);
+
+  if (it.favorite) {
+    var fav = document.createElement('div');
+    fav.className = 'fav';
+    fav.innerHTML = '&#9829;';
+    main.appendChild(fav);
+  }
+
+  var canNav = NAVIGABLE[mt] && !opts.noNav;
+  if (canNav) {
+    var ch = document.createElement('div');
+    ch.className = 'chev';
+    ch.innerHTML = '&#8250;';
+    main.appendChild(ch);
+  }
+
+  main.onclick = function () {
+    if (canNav) { openItem(it, mt); }
+    else { openSheet(it, mt, opts); }
+  };
+  row.appendChild(main);
+
+  /* Immer erreichbar: das Aktionsblatt. Bei blätterbaren Einträgen ist
+     das der einzige Weg dorthin, weil das Antippen navigiert. */
+  var more = document.createElement('div');
+  more.className = 'more';
+  more.innerHTML = '&#8942;';
+  more.onclick = function (e) {
+    if (e && e.stopPropagation) { e.stopPropagation(); }
+    openSheet(it, mt, opts);
+  };
+  row.appendChild(more);
+
+  return row;
+}
+
+/* ==================================================================
+   NAVIGATIONS-STAPEL
+   ==================================================================
+   Ein Stapel von Ansichten: Suche > Interpret > Album. Der oberste
+   Eintrag bestimmt Kopfzeile und Liste; "Zurück" nimmt einen herunter.
+   ================================================================== */
+var stack = [];
+
+function pushView(v) { stack.push(v); renderStack(); }
+
+function popView() {
+  stack.pop();
+  renderStack();
+}
+
+function resetStack() { stack = []; renderStack(); }
+
+function getActiveLoader(top) {
+  if (!top.tabs || !top.tabs.length) { return top.load; }
+  var tab = top.tabs[top.activeTab || 0];
+  return tab && tab.load ? tab.load : top.load;
+}
+
+function renderTabs(top) {
+  var box = $('viewTabs');
+  if (!top || !top.tabs || !top.tabs.length) {
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+  box.style.display = '-webkit-flex';
+  box.style.display = 'flex';
+  box.innerHTML = '';
+  for (var i = 0; i < top.tabs.length; i++) {
+    (function (idx) {
+      var t = top.tabs[idx];
+      var el = document.createElement('div');
+      el.className = 'filt' + (idx === (top.activeTab || 0) ? ' on' : '');
+      el.appendChild(document.createTextNode(t.label || t.key));
+      el.onclick = function () { switchViewTab(top, idx); };
+      box.appendChild(el);
+    })(i);
+  }
+}
+
+function switchViewTab(view, idx) {
+  view.activeTab = idx;
+  renderStack();
+}
+
+function renderStack() {
+  var top = stack.length ? stack[stack.length - 1] : null;
+  $('searchTools').style.display = top ? 'none' : 'block';
+  $('crumbs').className = 'crumbs' + (top ? ' on' : '');
+  renderTabs(top);
+  var box = $('results');
+  if (!top) {
+    renderResults(lastResults);
+    return;
+  }
+  setText($('crumbName'), top.title || '');
+  setText($('crumbSub'), top.sub || '');
+
+  /* Kopf-Aktionen der Detailansicht: abspielen + Favorit */
+  var pa = $('crumbPlay');
+  pa.style.display = top.item ? 'block' : 'none';
+  pa.onclick = function () { if (top.item) { openSheet(top.item, top.item.media_type, {}); } };
+
+  var hb = $('crumbHeart');
+  hb.style.display = top.item ? 'block' : 'none';
+  paintCrumbHeart(top);
+  hb.onclick = function () {
+    if (!top.resolved) { return; }
+    var was = !!top.resolved.favorite;
+    toggleFav(top.resolved, function (err) {
+      if (err) { toast('Favorit fehlgeschlagen: ' + err, true); return; }
+      toast(was ? 'Aus Favoriten entfernt' : 'Zu Favoriten hinzugefügt');
+      setTimeout(function () { loadCrumbFav(top); }, 600);
+    });
+  };
+
+  /* Tabs mit Lazy Loading: bereits geladene Inhalte aus dem Cache nehmen. */
+  var cacheKey = null;
+  if (top.tabs && top.tabs.length) {
+    var activeTab = top.tabs[top.activeTab || 0];
+    cacheKey = activeTab.key || String(top.activeTab || 0);
+    if (top.cache && top.cache[cacheKey] !== undefined) {
+      renderSections(top.cache[cacheKey]);
+      return;
+    }
+  }
+
+  box.innerHTML = '<div class="hint">Wird geladen …</div>';
+  var loader = getActiveLoader(top);
+  loader.call(top, function (err, sections) {
+    if (stack[stack.length - 1] !== top) { return; }   /* zwischenzeitlich weitergeblättert */
+    if (err) {
+      box.innerHTML = '';
+      var h = document.createElement('div');
+      h.className = 'hint';
+      setText(h, 'Konnte nicht geladen werden (' + err + ').');
+      box.appendChild(h);
+      return;
+    }
+    if (cacheKey !== null) {
+      if (!top.cache) { top.cache = {}; }
+      top.cache[cacheKey] = sections;
+    }
+    renderSections(sections);
+  });
+}
+
+function paintCrumbHeart(v) {
+  var hb = $('crumbHeart');
+  if (!v.resolved) { hb.className = 'crumbheart'; hb.innerHTML = '<span>&#9825;</span>'; return; }
+  hb.className = 'crumbheart' + (v.resolved.favorite ? ' on' : '');
+  hb.innerHTML = '<span>' + (v.resolved.favorite ? '&#9829;' : '&#9825;') + '</span>';
+}
+
+function loadCrumbFav(v) {
+  if (!v.item || !v.item.uri) { return; }
+  resolveItem(v.item.uri, function (err, it) {
+    if (err) { return; }
+    v.resolved = it;
+    if (stack[stack.length - 1] === v) { paintCrumbHeart(v); }
+  });
+}
+
+function renderSections(sections) {
+  var box = $('results');
+  box.innerHTML = '';
+  var any = false;
+  for (var i = 0; i < sections.length; i++) {
+    var sec = sections[i];
+    if (!sec.items || !sec.items.length) { continue; }
+    any = true;
+    var h = document.createElement('div');
+    h.className = 'group';
+    setText(h, sec.label);
+    box.appendChild(h);
+    for (var j = 0; j < sec.items.length; j++) {
+      box.appendChild(mediaRow(sec.items[j], sec.type, sec.opts ? sec.opts(sec.items[j], j) : {}));
+    }
+  }
+  if (!any) {
+    box.innerHTML = '<div class="hint">Nichts gefunden.</div>';
+  }
+}
+
+$('bBack').onclick = popView;
+
+/* ---------- Detailansichten ---------- */
+function openItem(it, mt) {
+  mt = mt || it.media_type;
+  switchTab('search');
+  if (mt === 'artist') { openArtist(it); return; }
+  if (mt === 'album') { openAlbum(it); return; }
+  if (mt === 'playlist') { openPlaylist(it); return; }
+  if (mt === 'podcast') { openPodcast(it); return; }
+  openSheet(it, mt, {});
+}
+
+function openArtist(a) {
+  var args = { item_id: a.item_id, provider_instance_id_or_domain: a.provider };
+  var v = {
+    title: a.name || 'Interpret',
+    sub: 'Interpret',
+    item: a,
+    resolved: null,
+    activeTab: 0,
+    cache: {},
+    tabs: [
+      {
+        key: 'tracks',
+        label: 'Top-Titel',
+        load: function (cb) {
+          send('music/artists/artist_tracks', args, function (err, tracks) {
+            if (err) { cb(err, null); return; }
+            cb(null, [{
+              label: 'Top-Titel', type: 'track', items: tracks || [],
+              opts: function (x, i) { return { index: i + 1, sub: albumOf(x) }; }
+            }]);
+          });
+        }
+      },
+      {
+        key: 'albums',
+        label: 'Alben',
+        load: function (cb) {
+          send('music/artists/artist_albums', args, function (err, albums) {
+            if (err) { cb(err, null); return; }
+            cb(null, [{
+              label: 'Alben', type: 'album', items: albums || [],
+              opts: function (x) { return { sub: yearOf(x) }; }
+            }]);
+          });
+        }
+      }
+    ]
+  };
+  pushView(v);
+  loadCrumbFav(v);
+}
+
+function openAlbum(al) {
+  var v = {
+    title: al.name || 'Album',
+    sub: artistsOf(al) + (yearOf(al) ? ' · ' + yearOf(al) : ''),
+    item: al,
+    resolved: null,
+    load: function (cb) {
+      send('music/albums/album_tracks', {
+        item_id: al.item_id,
+        provider_instance_id_or_domain: al.provider
+      }, function (err, tracks) {
+        if (err) { cb(err, null); return; }
+        cb(null, [{
+          label: 'Titel', type: 'track', items: tracks || [],
+          opts: function (x, i) {
+            return { index: x.track_number || (i + 1), sub: artistsOf(x), startFrom: al };
+          }
+        }]);
+      });
+    }
+  };
+  pushView(v);
+  loadCrumbFav(v);
+}
+
+function openPlaylist(pl) {
+  var v = {
+    title: pl.name || 'Playlist',
+    sub: 'Playlist' + (pl.owner ? ' · ' + pl.owner : ''),
+    item: pl,
+    resolved: null,
+    load: function (cb) {
+      send('music/playlists/playlist_tracks', {
+        item_id: pl.item_id,
+        provider_instance_id_or_domain: pl.provider
+      }, function (err, tracks) {
+        if (err) { cb(err, null); return; }
+        cb(null, [{
+          label: 'Titel', type: 'track', items: tracks || [],
+          opts: function (x, i) { return { index: i + 1, sub: artistsOf(x), startFrom: pl }; }
+        }]);
+      });
+    }
+  };
+  pushView(v);
+  loadCrumbFav(v);
+}
+
+function openPodcast(pc) {
+  var v = {
+    title: pc.name || 'Podcast',
+    sub: 'Podcast',
+    item: pc,
+    resolved: null,
+    load: function (cb) {
+      send('music/podcasts/podcast_episodes', {
+        item_id: pc.item_id,
+        provider_instance_id_or_domain: pc.provider
+      }, function (err, eps) {
+        if (err) { cb(err, null); return; }
+        cb(null, [{
+          label: 'Folgen', type: 'podcast_episode', items: eps || [],
+          opts: function (x, i) { return { index: i + 1, sub: '' }; }
+        }]);
+      });
+    }
+  };
+  pushView(v);
+  loadCrumbFav(v);
+}
+
+function albumOf(t) { return (t.album && t.album.name) || ''; }
+function yearOf(a) { return a.year ? String(a.year) : ''; }
+
+/* ==================================================================
+   SUCHE
+   ================================================================== */
+var FILTERS = [
+  { k: 'all',      l: 'Alles' },
+  { k: 'track',    l: 'Titel' },
+  { k: 'album',    l: 'Album' },
+  { k: 'artist',   l: 'Interpret' },
+  { k: 'playlist', l: 'Playlist' },
+  { k: 'radio',    l: 'Radio' }
+];
+var GROUPS = [
+  { key: 'tracks',     label: 'Titel',       type: 'track' },
+  { key: 'albums',     label: 'Alben',       type: 'album' },
+  { key: 'artists',    label: 'Interpreten', type: 'artist' },
+  { key: 'playlists',  label: 'Playlists',   type: 'playlist' },
+  { key: 'radio',      label: 'Radio',       type: 'radio' },
+  { key: 'podcasts',   label: 'Podcasts',    type: 'podcast' },
+  { key: 'audiobooks', label: 'Hörbücher',   type: 'audiobook' }
+];
+var searchType = 'all';
+var lastResults = null;
+
+function buildFilters() {
+  var box = $('filters');
+  box.innerHTML = '';
+  for (var i = 0; i < FILTERS.length; i++) {
+    (function (f) {
+      var el = document.createElement('div');
+      el.className = 'filt' + (f.k === searchType ? ' on' : '');
+      el.appendChild(document.createTextNode(f.l));
+      el.onclick = function () {
+        searchType = f.k;
+        buildFilters();
+        if ($('q').value) { doSearch(); }
+      };
+      box.appendChild(el);
+    })(FILTERS[i]);
+  }
+}
+
+function doSearch() {
+  var q = $('q').value;
+  if (!q) { return; }
+  resetStack();
+  $('results').innerHTML = '<div class="hint">Wird gesucht …</div>';
+  var args = { search_query: q, limit: CFG.SEARCH_LIMIT };
+  if (searchType !== 'all') { args.media_types = [searchType]; }
+  send('music/search', args, function (err, res) {
+    if (err) {
+      $('results').innerHTML = '';
+      var h = document.createElement('div');
+      h.className = 'hint';
+      setText(h, 'Suche fehlgeschlagen (' + err + ').');
+      $('results').appendChild(h);
+      return;
+    }
+    lastResults = res || {};
+    if (!stack.length) { renderResults(lastResults); }
+  });
+}
+
+function renderResults(res) {
+  var box = $('results');
+  if (!res) {
+    box.innerHTML = '<div class="hint">Suchbegriff eingeben. Ein Treffer wird auf dem oben gewählten Player abgespielt.</div>';
+    return;
+  }
+  var sections = [];
+  for (var g = 0; g < GROUPS.length; g++) {
+    var grp = GROUPS[g];
+    sections.push({ label: grp.label, type: grp.type, items: res[grp.key] || [] });
+  }
+  renderSections(sections);
+  var any = false;
+  for (var i = 0; i < sections.length; i++) { if (sections[i].items.length) { any = true; } }
+  if (!any) {
+    box.innerHTML = '<div class="hint">Keine Treffer. Anderen Filter probieren, oder genauer suchen – z. B. „Billy Joel - A Matter of Trust“.</div>';
+  }
+}
+
+$('bSearch').onclick = doSearch;
+$('q').onkeypress = function (e) { if ((e.keyCode || e.which) === 13) { $('q').blur(); doSearch(); } };
+
+/* ==================================================================
+   AKTIONSBLATT
+   ================================================================== */
+var pending2 = null;   /* { item, type, opts, resolved } */
+
+function openSheet(it, type, opts) {
+  pending2 = { item: it, type: type || it.media_type, opts: opts || {}, resolved: null };
+  setText($('sheetTitle'), it.name || '—');
+  var who = artistsOf(it);
+  setText($('sheetSub'), (who ? who + ' · ' : '') + 'auf ' + playerName(activeId));
+
+  /* "Öffnen" nur, wenn es eine Detailansicht gibt und wir nicht schon drin sind */
+  var mt = pending2.type;
+  var top = stack.length ? stack[stack.length - 1] : null;
+  var alreadyOpen = top && top.item && top.item.uri === it.uri;
+  $('aOpen').className = 'act' + ((NAVIGABLE[mt] && !alreadyOpen) ? '' : ' gone');
+  $('aPlaylist').className = 'act' + (it.uri ? '' : ' gone');
+
+  var art = (it.artists && it.artists.length) ? it.artists[0] : (it.artist || null);
+  $('aArtist').className = 'act' + ((art && art.item_id) ? '' : ' gone');
+  $('aAlbum').className = 'act' + ((it.album && it.album.item_id) ? '' : ' gone');
+  var anyNav = $('aOpen').className.indexOf('gone') < 0 ||
+               $('aArtist').className.indexOf('gone') < 0 ||
+               $('aAlbum').className.indexOf('gone') < 0;
+  $('aNavSep').style.display = anyNav ? 'block' : 'none';
+
+  setText($('aFav'), 'Favorit wird geprüft …');
+  $('aFav').className = 'act fav';
+  resolveItem(it.uri, function (err, resolved) {
+    if (!pending2 || pending2.item !== it) { return; }
+    if (err) { setText($('aFav'), 'Favorit nicht verfügbar'); return; }
+    pending2.resolved = resolved;
+    setText($('aFav'), resolved.favorite ? '♥  Favorit entfernen' : '♡  Zu Favoriten');
+  });
+
+  $('sheetbg').className = 'sheetbg on';
+}
+
+function closeSheet() { $('sheetbg').className = 'sheetbg'; pending2 = null; }
+
+function playPending(option) {
+  if (!pending2) { return; }
+  if (!activeQueueId) { toast('Kein Player gewählt', true); return; }
+  var it = pending2.item;
+  var args = { queue_id: activeQueueId, media: it.uri, option: option };
+  /* Aus einer Album-/Playlist-Ansicht heraus soll ein Titel nicht allein
+     laufen, sondern die ganze Liste ab diesem Titel. */
+  var from = pending2.opts.startFrom;
+  if (from && option === 'replace') {
+    args.media = from.uri;
+    args.start_item = it.uri;
+  }
+  var label = it.name;
+  closeSheet();
+  send('player_queues/play_media', args, function (err) {
+    if (err) { toast('Abspielen fehlgeschlagen: ' + err, true); return; }
+    toast(option === 'replace' ? ('Läuft: ' + label) : ('Zur Warteschlange: ' + label));
+  });
+}
+
+$('aNow').onclick  = function () { playPending('replace'); };
+$('aNext').onclick = function () { playPending('next'); };
+$('aAdd').onclick  = function () { playPending('add'); };
+$('aFav').onclick  = function () {
+  if (!pending2 || !pending2.resolved) { return; }
+  var res = pending2.resolved;
+  var was = !!res.favorite;
+  closeSheet();
+  toggleFav(res, function (err) {
+    if (err) { toast('Favorit fehlgeschlagen: ' + err, true); return; }
+    toast(was ? 'Aus Favoriten entfernt' : 'Zu Favoriten hinzugefügt');
+    setTimeout(refreshNowFav, 600);
+  });
+};
+$('aOpen').onclick = function () {
+  if (!pending2) { return; }
+  var it = pending2.item, mt = pending2.type;
+  closeSheet();
+  openItem(it, mt);
+};
+$('aPlaylist').onclick = function () {
+  if (!pending2 || !pending2.item) { return; }
+  var it = pending2.item;
+  closeSheet();
+  openPlaylistSheet(it.uri, it.name);
+};
+$('aArtist').onclick = function () {
+  if (!pending2) { return; }
+  var it = pending2.item;
+  var art = (it.artists && it.artists.length) ? it.artists[0] : it.artist;
+  closeSheet();
+  if (art) { openArtist(art); }
+};
+$('aAlbum').onclick = function () {
+  if (!pending2) { return; }
+  var al = pending2.item.album;
+  closeSheet();
+  if (al) { openAlbum(al); }
+};
+$('aCancel').onclick = closeSheet;
+$('sheetbg').onclick = function (e) { if (e.target === $('sheetbg')) { closeSheet(); } };
+
+/* ==================================================================
+   BIBLIOTHEK
+   ================================================================== */
+var LIB_TYPES = [
+  { k: 'playlist',  l: 'Playlists',   cmd: 'music/playlists/library_items',  type: 'playlist' },
+  { k: 'artist',    l: 'Interpreten', cmd: 'music/artists/library_items',    type: 'artist' },
+  { k: 'album',     l: 'Alben',       cmd: 'music/albums/library_items',     type: 'album' },
+  { k: 'track',     l: 'Titel',       cmd: 'music/tracks/library_items',     type: 'track' },
+  { k: 'radio',     l: 'Radio',       cmd: 'music/radios/library_items',     type: 'radio' },
+  { k: 'podcast',   l: 'Podcasts',    cmd: 'music/podcasts/library_items',   type: 'podcast' },
+  { k: 'audiobook', l: 'Hörbücher',   cmd: 'music/audiobooks/library_items', type: 'audiobook' }
+];
+var currentLibType = 'playlist';
+
+function buildLibFilters() {
+  var box = $('libFilters');
+  box.innerHTML = '';
+  for (var i = 0; i < LIB_TYPES.length; i++) {
+    (function (def) {
+      var el = document.createElement('div');
+      el.className = 'filt' + (def.k === currentLibType ? ' on' : '');
+      el.appendChild(document.createTextNode(def.l));
+      el.onclick = function () {
+        currentLibType = def.k;
+        buildLibFilters();
+        loadLibrary(currentLibType);
+      };
+      box.appendChild(el);
+    })(LIB_TYPES[i]);
+  }
+}
+
+function loadLibrary(typeKey) {
+  var def = null;
+  for (var i = 0; i < LIB_TYPES.length; i++) {
+    if (LIB_TYPES[i].k === typeKey) { def = LIB_TYPES[i]; break; }
+  }
+  if (!def) { return; }
+  var box = $('libResults');
+  box.innerHTML = '<div class="hint">Wird geladen …</div>';
+  var want = typeKey;
+  send(def.cmd, { limit: CFG.LIST_LIMIT, offset: 0, favorite: false, order_by: 'name' }, function (err, items) {
+    if (want !== currentLibType) { return; }
+    if (err) {
+      box.innerHTML = '';
+      var h = document.createElement('div');
+      h.className = 'hint';
+      setText(h, 'Konnte nicht geladen werden (' + err + ').');
+      box.appendChild(h);
+      return;
+    }
+    box.innerHTML = '';
+    if (!items || !items.length) {
+      box.innerHTML = '<div class="hint">Keine Einträge vorhanden.</div>';
+      return;
+    }
+    for (var j = 0; j < items.length; j++) {
+      box.appendChild(mediaRow(items[j], def.type, {}));
+    }
+  });
+}
+
+/* ==================================================================
+   WARTESCHLANGE
+   ================================================================== */
+var currentTab = 'search';
+
+var TABS = {
+  search:  { pane: 'paneSearch',  init: null },
+  queue:   { pane: 'paneQueue',   init: loadQueue },
+  library: { pane: 'paneLibrary', init: function () { buildLibFilters(); loadLibrary(currentLibType); } }
+};
+
+function switchTab(name) {
+  currentTab = name;
+  var tabs = document.getElementsByClassName('tab');
+  for (var i = 0; i < tabs.length; i++) {
+    tabs[i].className = 'tab' + (tabs[i].getAttribute('data-tab') === name ? ' on' : '');
+  }
+  for (var k in TABS) {
+    if (!TABS.hasOwnProperty(k)) { continue; }
+    var pane = $(TABS[k].pane);
+    pane.style.display = (k === name) ? '-webkit-flex' : 'none';
+    pane.style.display = (k === name) ? 'flex' : 'none';
+  }
+  if (TABS[name] && TABS[name].init) { TABS[name].init(); }
+}
+
+(function wireTabs() {
+  var tabs = document.getElementsByClassName('tab');
+  for (var i = 0; i < tabs.length; i++) {
+    (function (t) { t.onclick = function () { switchTab(t.getAttribute('data-tab')); }; })(tabs[i]);
+  }
+})();
+
+function loadQueue() {
+  var box = $('queue');
+  if (!activeQueueId) { box.innerHTML = '<div class="hint">Kein Player gewählt.</div>'; return; }
+  box.innerHTML = '<div class="hint">Wird geladen …</div>';
+  var qid = activeQueueId;
+  send('player_queues/items', { queue_id: qid, limit: 500 }, function (err, items) {
+    if (qid !== activeQueueId) { return; }
+    if (err) {
+      box.innerHTML = '';
+      var h = document.createElement('div');
+      h.className = 'hint';
+      setText(h, 'Warteschlange nicht abrufbar (' + err + ').');
+      box.appendChild(h);
+      return;
+    }
+    box.innerHTML = '';
+    if (!items || !items.length) {
+      box.innerHTML = '<div class="hint">Warteschlange ist leer.</div>';
+      return;
+    }
+    var q = activeQueue();
+    var curId = q && q.current_item ? q.current_item.queue_item_id : null;
+    for (var i = 0; i < items.length; i++) {
+      box.appendChild(queueRow(items[i], i, curId === items[i].queue_item_id));
+    }
+  });
+}
+
+function queueRow(qi, index, isCurrent) {
+  var mi = qi.media_item || qi;
+  var row = document.createElement('div');
+  row.className = 'row' + (isCurrent ? ' now' : '');
+
+  var main = document.createElement('div');
+  main.className = 'rowmain';
+
+  var num = document.createElement('div');
+  num.className = 'num';
+  setText(num, index + 1);
+  main.appendChild(num);
+
+  var txt = document.createElement('div');
+  txt.className = 'txt';
+  var n = document.createElement('div');
+  n.className = 'n';
+  setText(n, qi.name || mi.name || '—');
+  var s = document.createElement('div');
+  s.className = 's';
+  setText(s, artistsOf(mi) || albumOf(mi));
+  txt.appendChild(n); txt.appendChild(s);
+  main.appendChild(txt);
+
+  main.onclick = function () {
+    send('player_queues/play_index', { queue_id: activeQueueId, index: qi.queue_item_id },
+      function (err) {
+        if (err) { toast('Sprung fehlgeschlagen: ' + err, true); return; }
+        setTimeout(loadQueue, 800);
+      });
+  };
+  row.appendChild(main);
+
+  var del = document.createElement('div');
+  del.className = 'more';
+  del.innerHTML = '&times;';
+  del.onclick = function (e) {
+    if (e && e.stopPropagation) { e.stopPropagation(); }
+    send('player_queues/delete_item', { queue_id: activeQueueId, item_id_or_index: qi.queue_item_id },
+      function (err) {
+        if (err) { toast('Entfernen fehlgeschlagen: ' + err, true); return; }
+        loadQueue();
+      });
+  };
+  row.appendChild(del);
+
+  return row;
+}
+
+$('bQueueReload').onclick = loadQueue;
+$('bQueueClear').onclick = function () {
+  if (!activeQueueId) { return; }
+  send('player_queues/clear', { queue_id: activeQueueId }, function (err) {
+    if (err) { toast('Leeren fehlgeschlagen: ' + err, true); return; }
+    toast('Warteschlange geleert');
+    setTimeout(loadQueue, 500);
+  });
+};
+
+/* ==================================================================
+   START
+   ================================================================== */
+buildFilters();
+setLink(false);
+probeClock();
+connect();
+setInterval(tick, 500);
+
+/* Scroll-Gummiband des Fensters unterdrücken, Listen scrollen weiter */
+document.addEventListener('touchmove', function (e) {
+  var n = e.target;
+  while (n && n !== document.body) {
+    if (n.className && String(n.className).indexOf('list') >= 0) { return; }
+    if (n.className && String(n.className).indexOf('stations') >= 0) { return; }
+    if (n.className && String(n.className).indexOf('sheet') >= 0) { return; }
+    n = n.parentNode;
+  }
+  e.preventDefault();
+}, false);
+</script>
+</body>
+</html>

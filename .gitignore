@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Editoren
+.vscode/
+.idea/
+*.swp
+*~
+
+# Logs
+*.log
+
+# Lokale Music Assistant Zugangsdaten
+ma-env.js
