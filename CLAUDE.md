@@ -10,7 +10,7 @@ Ein selbst gehosteter HTML-Dashboard-Controller für [Music Assistant](https://w
 
 - **Direkte MA-Steuerung** über WebSocket (`/ws`) mit Long-Lived-Token-Authentifizierung.
 - **Player-Auswahl** als stationsartige Leiste oben (alle oder eine konfigurierbare Whitelist). Ein Klick auf die bereits aktive Station öffnet ein Gruppierungs-Menü: aktuelle Gruppenmitglieder sind dort entfernbar, weitere gruppierfähige Player können hinzugefügt werden.
-- **Now-Playing-Anzeige** mit Cover, Titel, Interpret, Album, Fortschrittsbalken, Transport, Shuffle/Repeat und Lautstärke. Bei Gruppen- oder Sync-Playern lässt sich ein aufklappbares Menü öffnen, um die Lautstärke jedes einzelnen Gruppenmitglieds zu regeln.
+- **Now-Playing-Anzeige** mit Cover, Titel, Interpret, Album, Fortschrittsbalken, Transport, Shuffle/Repeat und Lautstärke. Bei Gruppen- oder Sync-Playern lässt sich ein aufklappbares Menü öffnen, um die Lautstärke jedes einzelnen Gruppenmitglieds zu regeln. Das Cover blendet bei Titelwechsel über (Crossfade), statt hart ausgetauscht zu werden (siehe „Cover-Crossfade und Queue-Slide“).
 - **Suche** über Titel, Alben, Interpreten, Playlists, Radio, Podcasts, Hörbücher.
 - **Navigation** innerhalb der Suchergebnisse: Interpret → Alben + Top-Titel, Album → Titel, Playlist → Titel, Podcast → Folgen. Wird eine Detailansicht aus der Bibliothek oder dem Now-Playing-Bereich heraus geöffnet, bleibt der ursprüngliche Reiter (Bibliothek/Warteschlange) optisch aktiv markiert; „Zurück“ führt beim Verlassen der Detailansicht dorthin zurück.
 - **Detail-Tabs mit Lazy Loading** in der Interpretansicht: „Top-Titel“ (echte Top-/Featured-Titel, `music/artists/top_tracks`), „Titel“ (vollständige Titelliste, `music/artists/artist_tracks`) und „Alben“ werden erst beim Öffnen des Tabs geladen. Bei Interpreten aus der Bibliothek wird dafür automatisch der echte Streaming-Provider aus `provider_mappings` verwendet statt des Pseudo-Providers `library`, da Letzterer serverseitig nur bibliotheksverknüpfte Einträge liefert (siehe Abschnitt „Bibliothekselemente und Provider-Auflösung“).
@@ -97,6 +97,7 @@ Fehlt `ma-env.js` oder einzelne Werte, greifen Fallback-Defaults im Hauptscript.
 - `player_queues/clear`, `player_queues/delete_item` – Queue leeren / Eintrag entfernen.
 - Bei aktivem `shuffle_enabled` oder `radio_mode` zeigt die Queue einen Hinweis-Banner an, dass Titel dynamisch gemischt oder generiert werden.
 - Die Anzeige zeigt nur die letzten `QUEUE_HISTORY_LIMIT` (3) bereits gespielten Titel vor dem aktuellen Titel, nicht die komplette Verlaufs-Historie – betrifft nur das Rendering in `loadQueue()`, die Server-Queue bleibt unverändert.
+- Bei einem reinen Titelwechsel wird die Liste nicht neu aufgebaut, sondern per Slide-Animation aktualisiert (siehe „Cover-Crossfade und Queue-Slide“).
 
 ### Medien
 
@@ -136,6 +137,14 @@ Die korrekte Implementierung im Dashboard:
 3. Alle 500 ms `tick()` aufrufen, um den Balken flüssig zu aktualisieren.
 4. Uhr-Korrektur gegen den MA-Server mittels HTTP `Date`-Header von `/info`, damit ein falsch gehendes iPad den Balken nicht verschiebt.
 
+## Cover-Crossfade und Queue-Slide
+
+Ein harter `innerHTML`-Austausch bei jedem Titelwechsel wirkt unruhig (Cover blitzt, Warteschlange baut sich sichtbar neu auf). Beides ist stattdessen als weiche Übergangsanimation gelöst, rein mit CSS-Transitions (kein Framework, ES5/iPad-tauglich):
+
+- **Cover** (`renderNow()` → `crossfadeCover()`): Ein neues `<img>`- bzw. Platzhalter-Element wird über das bisherige gelegt (`.cover img`/`.cover .ph` sind `position: absolute` innerhalb des `position: relative`-Containers `.cover`) und per `opacity`-Transition (`.show`-Klasse) eingeblendet. Das alte Element wird erst nach Ablauf der Transition (`setTimeout`, 420 ms) aus dem DOM entfernt.
+- **Queue** (`loadQueue()` → `tryQueueSlide()`): Bei jedem Refresh wird geprüft, ob sich seit dem letzten Rendern nur das sichtbare Fenster verschoben hat (`lastQueueIds`/`lastQueueStartIdx`) – d. h. Reihenfolge und Anzahl der Queue-Items sind identisch, nur der aktuelle Titel ist vorgerückt (Normalfall beim Weiterspielen). In diesem Fall wird nicht neu aufgebaut: die `.now`-Markierung wandert zur passenden Zeile, und die oben aus dem Fenster fallenden Zeilen werden per Höhen-/Opacity-Transition weggeslided (`slideRowAway()`, Klasse `.row.q-leave`), statt hart entfernt zu werden. Bei echten Änderungen (Shuffle, Hinzufügen/Löschen, Playerwechsel – `lastQueueIds` passt nicht mehr) greift weiterhin der volle Rebuild über `renderQueueRows()`. Der „Wird geladen …“-Hinweis erscheint nur noch, wenn die Liste aktuell leer ist (`box.getElementsByClassName('row').length === 0`), nicht mehr bei jedem stillen Hintergrund-Refresh.
+- Beide Mechanismen nutzen die generischen Klassen-Helfer `hasClass()`/`addClass()`/`removeClass()` (String-basiert, kein `classList`, konsistent mit dem übrigen ES5-Stil der Datei).
+
 ## Favoriten-Asymmetrie
 
 MA behandelt Favoriten absichtlich asymmetrisch:
@@ -159,6 +168,14 @@ Der Imageproxy akzeptiert nur die Größen `{0, 80, 160, 256, 512, 1024}`; ander
 
 Falls `current_media.image_url` aus einer falsch konfigurierten internen `base_url` des MA-Servers stammt (typisch bei Reverse-Proxy oder Docker), wird der Host für proxy-URLs auf `CFG.MA` umgebogen (`fixUrl`).
 
+## Homescreen-Webclip und Update-Erkennung
+
+Als „Zum Home-Bildschirm hinzugefügt“-App (`apple-mobile-web-app-capable`) hält WebKit auf iPads oft hartnäckig an einem einmal geladenen Snapshot von `ma-dashboard.html` fest – die `<meta http-equiv="Cache-Control">`-Tags im `<head>` reichen dafür nicht aus, weil sie nur echte HTTP-Response-Header ersetzen können, wenn der Server selbst keine setzt, und der Webclip-Modus eigene, aggressivere Regeln hat. Ohne Gegenmaßnahme bekommt man neue Versionen erst nach manuellem Löschen und Neuanlegen des Homescreen-Icons zu sehen.
+
+Dagegen gibt es `checkForUpdate()`: Beim Start, bei Rückkehr aus dem Hintergrund (`visibilitychange`) und bei `pageshow` wird `ma-dashboard.html` per `XMLHttpRequest` mit cache-bustendem Query-String (`?_v=<timestamp>`) frisch vom Server geholt und die darin per Regex gefundene `APP_VERSION`-Konstante mit der gerade laufenden verglichen. Weicht sie ab, erscheint ein Toast und nach kurzer Verzögerung eine harte Navigation (`location.href`) auf eine neue URL (anderer Query-String), damit WebKit nicht erneut die gecachte Fassung ausliefert.
+
+**Wichtig:** `APP_VERSION` (oben im `<script>`, vor dem Abschnitt „KONFIGURATION“) muss bei jeder funktionalen Änderung an `ma-dashboard.html` erhöht werden – sonst erkennt der Mechanismus keine neue Version und der Webclip bleibt trotz Deployment auf dem alten Stand.
+
 ## Entwicklung und Anpassung
 
 - Änderungen nur in `ma-env.js` vornehmen; der Rest sollte normalerweise nicht angefasst werden müssen.
@@ -169,6 +186,7 @@ Falls `current_media.image_url` aus einer falsch konfigurierten internen `base_u
 - Im „Zur Playlist hinzufügen“-Sheet sortiert `loadUserPlaylists()` Favoriten nach oben und ordnet die restlichen Playlists alphabetisch nach Namen.
 - Der Bibliothek-Tab ruft `music/<type>s/library_items` ohne `favorite`-Filter auf, damit jedes Item das `favorite`-Flag mitbringt und `mediaRow()` das Herz anzeigen kann. Ein Toggle-Chip „Nur Favoriten“ filtert die Liste client-seitig.
 - Gruppen-Member-Lautstärke: Mitglieder werden aus `group_members`/`group_childs` bzw. als Fallback über `synced_to`/`active_group` ermittelt. Jedes Mitglied, das `supported_features` enthält, bekommt einen eigenen Slider unter dem Haupt-Volume-Slider.
+- `rebuildPlayerOrder()` schließt Gruppenmitglieder konsequent aus `playerIds` aus – geprüft werden `p.synced_to`, `p.active_group` UND ob die ID in `group_members`/`group_childs` eines anderen Players auftaucht. Manche MA-Player spiegeln ihre Mitgliedschaft nämlich nur beim Gruppenleiter, nicht auf sich selbst; wird das nicht berücksichtigt, bleibt so ein Mitglied in `playerIds` und meldet über `players/all` oft ebenfalls `state: 'playing'` – dadurch erschien beim Laden kurzzeitig eine zweite „aktive“ Station neben dem eigentlich gewählten Player in der Kopfleiste (`buildStations()`).
 - Gruppierungs-Menü: `resolveGroupMembers(id, filterVolume)` ist die gemeinsame Basis für Gruppenmitglieder – mit `filterVolume=true` liefert `getGroupMembers()` nur lautstärkefähige Mitglieder (für die Lautstärke-Slider), mit `filterVolume=false` liefert `renderGroupMenu()` alle Mitglieder (für Anzeige/Entfernen). Kandidaten zum Hinzufügen werden aus `playerIds` gefiltert nach `set_members` in `supported_features`.
 - Reiter-Herkunft bei Detailnavigation: `enterDetail()` merkt sich in `navOriginTab`, aus welchem Tab (Bibliothek/Warteschlange) eine Detailansicht geöffnet wurde, und übergibt das an `switchTab(name, pillName)` als zweiten Parameter, damit der ursprüngliche Reiter optisch aktiv bleibt, obwohl die Detailansicht technisch immer in `#paneSearch` läuft. `popView()` schaltet beim Leerwerden des Navigations-Stacks zurück auf `navOriginTab`. Neue Navigationseinstiege in Detailansichten sollten `enterDetail()` statt eines direkten `switchTab('search')` verwenden.
 - Sortierung: `sortMediaItems(items, mode)` (`'name'`/`'year'`, bei `'year'` Fallback auf `item.album.year` für Titel ohne eigenes Jahresfeld) ist der gemeinsame Sortier-Helfer für Bibliothek (`libSortMode`), Suche (`searchSortMode`, zusätzlich `'relevance'` als Server-Reihenfolge) und die Tabs „Titel“/„Alben“ der Interpretenansicht (`artistSortMode`, angewendet in `renderActiveSections()`). Die gemeinsame `SORT_MODES`-Konstante (`Name`/`Jahr`) speist sowohl die Bibliothek-Chips als auch die Sortier-Chips in `renderTabs()`. Tabs im View-Objekt tragen dafür ein `sortable`-Flag; „Top-Titel“ ist bewusst `sortable: false`, da seine Reihenfolge die Popularitäts-Rangfolge ist. Nicht in der gemeinsam genutzten `renderSections()` angewendet, da diese auch von Detail-Titellisten mit fixer Reihenfolge (Track-Nummern, Playlist-Reihenfolge) genutzt wird.
@@ -183,3 +201,4 @@ Falls `current_media.image_url` aus einer falsch konfigurierten internen `base_u
 - **Verbindungsampel bleibt rot** – `CFG.MA` prüfen, MA-Server erreichbar, Firewall/WebSocket-Proxy beachten.
 - **Balken läuft nicht mit** – siehe Abschnitt „Fortschrittsbalken und der Beta-Bug“; ist kein Client-Bug, sondern erwartetes Server-Verhalten.
 - **Bilder laden nicht** – `CFG.MA` muss korrekt sein; bei Reverse-Proxy muss `/imageproxy` erreichbar sein.
+- **Homescreen-App zeigt alte Version** – prüfen, ob `APP_VERSION` beim letzten Deployment tatsächlich erhöht wurde (siehe „Homescreen-Webclip und Update-Erkennung“); ohne das erkennt `checkForUpdate()` keine neue Version.

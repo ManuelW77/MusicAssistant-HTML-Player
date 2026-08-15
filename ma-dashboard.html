@@ -490,6 +490,18 @@ html, body {
 
 <script>
 /* ==================================================================
+   VERSION
+   ==================================================================
+   Als "Web-Clip" auf dem Homescreen (iOS "Zum Home-Bildschirm") cacht
+   WebKit ma-dashboard.html teils hartnäckig über Cache-Control-Header
+   und Neustarts hinweg. Bei jedem funktionalen Änderungen an dieser
+   Datei APP_VERSION erhöhen - checkForUpdate() vergleicht sie beim
+   Start und bei jeder Rückkehr in den Vordergrund gegen die Version,
+   die aktuell tatsächlich auf dem Server liegt (siehe dort).
+   ================================================================== */
+var APP_VERSION = '2026-08-15.1';
+
+/* ==================================================================
    KONFIGURATION
    ==================================================================
    Die sensiblen und gerätespezifischen Werte werden aus ma-env.js
@@ -655,7 +667,8 @@ var I18N = {
     "toast.playFailed": "Abspielen fehlgeschlagen: {err}",
     "toast.jumpFailed": "Sprung fehlgeschlagen: {err}",
     "toast.removeFailed": "Entfernen fehlgeschlagen: {err}",
-    "toast.clearFailed": "Leeren fehlgeschlagen: {err}"
+    "toast.clearFailed": "Leeren fehlgeschlagen: {err}",
+    "toast.updateAvailable": "Neue Version verfügbar – wird geladen …"
   },
   en: {
     "meta.title": "Music",
@@ -773,7 +786,8 @@ var I18N = {
     "toast.playFailed": "Playback failed: {err}",
     "toast.jumpFailed": "Jump failed: {err}",
     "toast.removeFailed": "Removal failed: {err}",
-    "toast.clearFailed": "Could not clear queue: {err}"
+    "toast.clearFailed": "Could not clear queue: {err}",
+    "toast.updateAvailable": "New version available – reloading …"
   }
 };
 
@@ -887,6 +901,32 @@ function probeClock() {
     clockSkew = parsedMs / 1000 - Date.now() / 1000;
   };
   try { x.send(null); } catch (e3) { /* egal, dann bleibt skew 0 */ }
+}
+
+/* ------------------------------------------------------------------
+   Update-Check für den iOS-Homescreen-Webclip. WebKit hält den einmal
+   "Zum Home-Bildschirm" hinzugefügten Snapshot von ma-dashboard.html
+   hartnäckig fest - auch über die Cache-Control-Meta-Tags im <head> und
+   über App-Neustarts hinweg. Deshalb wird die Datei aktiv per XHR (mit
+   cache-bustendem Query-String) frisch vom Server geholt und die darin
+   enthaltene APP_VERSION mit der gerade laufenden verglichen. Weicht
+   sie ab, wird hart auf eine neue URL navigiert (anderer Query-String),
+   damit WebKit nicht wieder die gecachte Fassung ausliefert.
+------------------------------------------------------------------ */
+function checkForUpdate() {
+  if (location.protocol === 'file:') { return; }
+  var url = location.pathname + '?_v=' + Date.now();
+  var x = new XMLHttpRequest();
+  try { x.open('GET', url, true); } catch (e) { return; }
+  x.onreadystatechange = function () {
+    if (x.readyState !== 4 || x.status !== 200 || !x.responseText) { return; }
+    var m = x.responseText.match(/APP_VERSION\s*=\s*'([^']+)'/);
+    if (m && m[1] && m[1] !== APP_VERSION) {
+      toast(t('toast.updateAvailable'));
+      setTimeout(function () { location.href = url; }, 1200);
+    }
+  };
+  try { x.send(null); } catch (e2) { /* egal, dann bleibt die aktuelle Version aktiv */ }
 }
 
 /* ------------------------------------------------------------------
@@ -1244,6 +1284,20 @@ function rebuildPlayerOrder() {
       if (players[CFG.PLAYERS[i]]) { ids.push(CFG.PLAYERS[i]); }
     }
   } else {
+    /* Gruppenmitgliedschaft wird nicht immer auf dem Mitglied selbst
+       gespiegelt (synced_to/active_group) - manche MA-Player tragen sie
+       nur auf dem Gruppenleiter (group_members/group_childs). Beide Wege
+       einsammeln, sonst bleibt ein Mitglied in playerIds und taucht -
+       weil sein eigener state oft ebenfalls "playing" meldet - kurzzeitig
+       als zweite "aktive" Station neben dem eigentlich gewählten Player auf. */
+    var memberIds = {};
+    for (var mk in players) {
+      if (!players.hasOwnProperty(mk)) { continue; }
+      var members = players[mk].group_members || players[mk].group_childs || [];
+      for (var mi = 0; mi < members.length; mi++) {
+        if (members[mi] !== mk) { memberIds[members[mi]] = true; }
+      }
+    }
     for (var k in players) {
       if (!players.hasOwnProperty(k)) { continue; }
       var p = players[k];
@@ -1251,7 +1305,7 @@ function rebuildPlayerOrder() {
       if (p.enabled === false) { continue; }
       if (p.hidden || p.hide_in_ui) { continue; }
       /* In eine Gruppe eingebundene Player doppeln nur die Liste. */
-      if (p.synced_to) { continue; }
+      if (p.synced_to || p.active_group || memberIds[k]) { continue; }
       ids.push(k);
     }
     ids.sort(function (a, b) {
@@ -3087,8 +3141,17 @@ buildLibFilters();
 setLink(false);
 applyLanguage();
 probeClock();
+checkForUpdate();
 connect();
 setInterval(tick, 500);
+
+/* Erneut prüfen, wenn die App aus dem Hintergrund zurückkehrt - beim
+   Homescreen-Webclip gibt es sonst keinen zuverlässigen Zeitpunkt, an
+   dem WebKit von selbst eine frische Fassung nachlädt. */
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden) { checkForUpdate(); }
+}, false);
+window.addEventListener('pageshow', function () { checkForUpdate(); }, false);
 
 switchTab('queue');
 
