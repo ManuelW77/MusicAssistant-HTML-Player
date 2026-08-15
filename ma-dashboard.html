@@ -97,6 +97,18 @@ html, body {
 .group-row .gbtn.remove { color: #c0553c; border-color: #c0553c; }
 .group-menu .hint { padding: 4px 4px 6px; }
 
+/* Sprachumschalter */
+.lang-switch {
+  display: -webkit-flex; display: flex; -webkit-flex-shrink: 0; flex-shrink: 0;
+  margin-left: 14px; border: 1px solid #3a3e3f;
+}
+.lang-chip {
+  font-family: "Avenir Next Condensed", sans-serif; font-size: 11px; letter-spacing: 0.8px;
+  color: #8e9391; padding: 5px 9px; cursor: pointer; -webkit-user-select: none; user-select: none;
+}
+.lang-chip:first-child { border-right: 1px solid #3a3e3f; }
+.lang-chip.on { color: #f0a32e; }
+
 /* Verbindungsampel ganz rechts in der Kopfzeile */
 .link { width: 9px; height: 9px; border-radius: 5px; background: #c0553c; margin-left: 14px; -webkit-flex-shrink: 0; flex-shrink: 0; }
 .link.on { background: #4e8a5c; }
@@ -323,21 +335,25 @@ html, body {
 <div class="wrap">
 
   <div class="top" id="topBar" style="position:relative;z-index:26;">
-    <div class="brand">Musik</div>
+    <div class="brand" data-i18n="top.brand">Musik</div>
     <div class="stations" id="stations"></div>
     <div class="station-more" id="stationMore">&#10095;</div>
+    <div class="lang-switch" id="langSwitch">
+      <div class="lang-chip" id="langDe">DE</div>
+      <div class="lang-chip" id="langEn">EN</div>
+    </div>
     <div class="link" id="link"></div>
   </div>
 
   <div class="station-menu" id="stationMenu" style="display:none;">
-    <div class="menu-head">Alle Player</div>
+    <div class="menu-head" data-i18n="top.allPlayers">Alle Player</div>
     <div id="stationMenuList"></div>
   </div>
 
   <div class="group-menu" id="groupMenu" style="display:none;">
-    <div class="menu-head" id="groupMenuHead">Gruppe</div>
+    <div class="menu-head" id="groupMenuHead" data-i18n="top.group">Gruppe</div>
     <div id="groupMenuActive"></div>
-    <div class="menu-head" id="groupMenuOthersHead">Weitere Geräte</div>
+    <div class="menu-head" id="groupMenuOthersHead" data-i18n="top.otherDevices">Weitere Geräte</div>
     <div id="groupMenuOthers"></div>
   </div>
 
@@ -346,7 +362,7 @@ html, body {
     <div class="left">
       <div class="cover" id="cover"><div class="ph">&#9835;</div></div>
       <div class="titlerow">
-        <div class="title" id="title">Nichts ausgewählt</div>
+        <div class="title" id="title" data-i18n="now.nothingSelected">Nichts ausgewählt</div>
         <div class="heart hide" id="npAdd"><span>&#43;</span></div>
         <div class="heart hide" id="npHeart"><span>&#9825;</span></div>
       </div>
@@ -368,58 +384,58 @@ html, body {
       </div>
 
       <div class="toggles">
-        <div class="tgl" id="bShuffle">Zufall</div>
-        <div class="tgl" id="bRepeat">Wiederholen</div>
-        <div class="tgl" id="bAutomix">Automix</div>
+        <div class="tgl" id="bShuffle" data-i18n="toggle.shuffle">Zufall</div>
+        <div class="tgl" id="bRepeat" data-i18n="toggle.repeat">Wiederholen</div>
+        <div class="tgl" id="bAutomix" data-i18n="toggle.automix">Automix</div>
       </div>
 
       <div class="vol">
-        <div class="lbl">Vol</div>
+        <div class="lbl" data-i18n="vol.label">Vol</div>
         <input type="range" id="vol" min="0" max="100" value="0">
         <div class="val" id="volVal">0</div>
       </div>
       <div class="vol-exp" id="volExp" style="display:none;">
-        <div class="vol-exp-hit" id="volExpHit">Gruppen-Lautstärke &#9660;</div>
+        <div class="vol-exp-hit" id="volExpHit" data-i18n="vol.groupVolumeCollapsed">Gruppen-Lautstärke &#9660;</div>
         <div class="vol-members" id="volMembers" style="display:none;"></div>
       </div>
     </div>
 
     <div class="right">
       <div class="tabs">
-        <div class="tab on" data-tab="queue">Warteschlange</div>
-        <div class="tab" data-tab="library">Bibliothek</div>
-        <div class="tab" data-tab="search">Suchen</div>
+        <div class="tab on" data-tab="queue" data-i18n="tab.queue">Warteschlange</div>
+        <div class="tab" data-tab="library" data-i18n="tab.library">Bibliothek</div>
+        <div class="tab" data-tab="search" data-i18n="tab.search">Suchen</div>
       </div>
 
       <div id="paneSearch" style="display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-flex:1;flex:1;min-height:0;">
         <div id="searchTools">
           <div class="searchbar">
-            <input type="text" id="q" placeholder="Titel, Interpret, Album, Playlist" autocorrect="off" autocapitalize="off">
-            <button id="bSearch">Suchen</button>
+            <input type="text" id="q" placeholder="Titel, Interpret, Album, Playlist" data-i18n-placeholder="search.placeholder" autocorrect="off" autocapitalize="off">
+            <button id="bSearch" data-i18n="search.button">Suchen</button>
           </div>
           <div class="filters" id="filters"></div>
         </div>
         <div class="crumbs" id="crumbs">
-          <div class="back" id="bBack">&#8592; Zurück</div>
+          <div class="back" id="bBack" data-i18n="nav.back">&#8592; Zurück</div>
           <div class="crumbtxt"><div class="n" id="crumbName"></div><div class="s" id="crumbSub"></div></div>
           <div class="crumbheart" id="crumbHeart"><span>&#9825;</span></div>
-          <div class="crumbact" id="crumbPlay">Abspielen</div>
+          <div class="crumbact" id="crumbPlay" data-i18n="crumb.play">Abspielen</div>
         </div>
         <div class="filters" id="viewTabs" style="display:none;"></div>
-        <div class="list" id="results"><div class="hint">Suchbegriff eingeben. Ein Treffer wird auf dem oben gewählten Player abgespielt.</div></div>
+        <div class="list" id="results"><div class="hint" data-i18n="search.hint">Suchbegriff eingeben. Ein Treffer wird auf dem oben gewählten Player abgespielt.</div></div>
       </div>
 
       <div id="paneQueue" style="display:none;-webkit-flex:1;flex:1;min-height:0;-webkit-flex-direction:column;flex-direction:column;">
         <div class="searchbar">
-          <button id="bQueueReload" style="margin-left:0">Aktualisieren</button>
-          <button id="bQueueClear" style="background:#26292a;color:#8e9391">Leeren</button>
+          <button id="bQueueReload" style="margin-left:0" data-i18n="queue.reload">Aktualisieren</button>
+          <button id="bQueueClear" style="background:#26292a;color:#8e9391" data-i18n="queue.clear">Leeren</button>
         </div>
         <div class="list" id="queue"></div>
       </div>
 
       <div id="paneLibrary" style="display:none;-webkit-flex:1;flex:1;min-height:0;-webkit-flex-direction:column;flex-direction:column;">
         <div class="filters" id="libFilters"></div>
-        <div class="list" id="libResults"><div class="hint">Medientyp oben wählen.</div></div>
+        <div class="list" id="libResults"><div class="hint" data-i18n="lib.hint">Medientyp oben wählen.</div></div>
       </div>
     </div>
 
@@ -430,26 +446,26 @@ html, body {
   <div class="sheet">
     <h2 id="sheetTitle"></h2>
     <p id="sheetSub"></p>
-    <button class="act prim" id="aNow">Jetzt abspielen</button>
-    <button class="act" id="aNext">Als Nächstes</button>
-    <button class="act" id="aAdd">Hinten anhängen</button>
-    <button class="act" id="aPlaylist">Zur Playlist</button>
-    <button class="act fav" id="aFav">Favorit …</button>
-    <div class="sep" id="aNavSep">Gehe zu</div>
-    <button class="act" id="aOpen">Öffnen</button>
-    <button class="act" id="aArtist">Interpret</button>
-    <button class="act" id="aAlbum">Album</button>
-    <button class="act ghost" id="aCancel">Abbrechen</button>
+    <button class="act prim" id="aNow" data-i18n="sheet.playNow">Jetzt abspielen</button>
+    <button class="act" id="aNext" data-i18n="sheet.playNext">Als Nächstes</button>
+    <button class="act" id="aAdd" data-i18n="sheet.addToQueue">Hinten anhängen</button>
+    <button class="act" id="aPlaylist" data-i18n="sheet.addToPlaylist">Zur Playlist</button>
+    <button class="act fav" id="aFav" data-i18n="sheet.favDefault">Favorit …</button>
+    <div class="sep" id="aNavSep" data-i18n="sheet.goTo">Gehe zu</div>
+    <button class="act" id="aOpen" data-i18n="sheet.open">Öffnen</button>
+    <button class="act" id="aArtist" data-i18n="label.artist">Interpret</button>
+    <button class="act" id="aAlbum" data-i18n="label.album">Album</button>
+    <button class="act ghost" id="aCancel" data-i18n="common.cancel">Abbrechen</button>
   </div>
 </div>
 
 <div class="sheetbg" id="playlistSheetbg">
   <div class="sheet">
-    <h2>Zur Playlist hinzufügen</h2>
+    <h2 data-i18n="playlistSheet.title">Zur Playlist hinzufügen</h2>
     <p id="playlistSheetSub"></p>
     <div class="list" id="playlistList" style="max-height:320px;border:1px solid #3a3e3f;margin-bottom:12px;"></div>
-    <button class="act prim" id="plCreate">Neue Playlist …</button>
-    <button class="act ghost" id="plCancel">Abbrechen</button>
+    <button class="act prim" id="plCreate" data-i18n="playlistSheet.createNew">Neue Playlist …</button>
+    <button class="act ghost" id="plCancel" data-i18n="common.cancel">Abbrechen</button>
   </div>
 </div>
 
@@ -483,6 +499,318 @@ function setText(el, s) {
   el.appendChild(document.createTextNode(s == null ? '' : String(s)));
 }
 
+/* ==================================================================
+   INTERNATIONALISIERUNG (DE/EN)
+   ==================================================================
+   Muss so weit oben stehen, weil bereits connect()/send()/bootstrap()
+   beim Start toast(t(...))-Aufrufe machen. t()/currentLang stehen ab
+   hier zur Verfuegung; applyLanguage() selbst wird erst ganz am
+   Scriptende aufgerufen, wenn alle Render-Funktionen definiert sind.
+   ================================================================== */
+var I18N = {
+  de: {
+    "meta.title": "Musik",
+    "top.brand": "Musik",
+    "top.allPlayers": "Alle Player",
+    "top.group": "Gruppe",
+    "top.otherDevices": "Weitere Geräte",
+    "now.nothingSelected": "Nichts ausgewählt",
+    "now.off": "Aus",
+    "now.nothingPlaying": "Nichts läuft",
+    "now.currentTrackFallback": "Aktueller Titel",
+    "toggle.shuffle": "Zufall",
+    "toggle.repeat": "Wiederholen",
+    "toggle.repeatOne": "Titel wdh.",
+    "toggle.automix": "Automix",
+    "toast.automixOn": "Automix ein",
+    "toast.automixOff": "Automix aus",
+    "vol.label": "Vol",
+    "vol.groupVolumeCollapsed": "Gruppen-Lautstärke ▼",
+    "vol.groupVolumeExpanded": "Gruppen-Lautstärke ▲",
+    "tab.queue": "Warteschlange",
+    "tab.library": "Bibliothek",
+    "tab.search": "Suchen",
+    "search.placeholder": "Titel, Interpret, Album, Playlist",
+    "search.button": "Suchen",
+    "search.hint": "Suchbegriff eingeben. Ein Treffer wird auf dem oben gewählten Player abgespielt.",
+    "search.searching": "Wird gesucht …",
+    "search.error": "Suche fehlgeschlagen ({err}).",
+    "search.noResults": "Keine Treffer. Anderen Filter probieren, oder genauer suchen – z. B. „Billy Joel - A Matter of Trust“.",
+    "search.nothingFound": "Nichts gefunden.",
+    "nav.back": "← Zurück",
+    "crumb.play": "Abspielen",
+    "queue.reload": "Aktualisieren",
+    "queue.clear": "Leeren",
+    "queue.noPlayerHint": "Kein Player gewählt.",
+    "queue.empty": "Warteschlange ist leer.",
+    "queue.loadError": "Warteschlange nicht abrufbar ({err}).",
+    "queue.radioBanner": "📻 <strong>Radiomodus aktiv:</strong> Music Assistant generiert Folgetitel fortlaufend dynamisch.",
+    "queue.shuffleBanner": "🔀 <strong>Zufallswiedergabe aktiv:</strong> Titelreihenfolge wird dynamisch gemischt.",
+    "queue.playingLabel": "Läuft: {label}",
+    "queue.addedLabel": "Zur Warteschlange: {label}",
+    "toast.queueCleared": "Warteschlange geleert",
+    "lib.hint": "Medientyp oben wählen.",
+    "lib.favOnly": "♥ Nur Favoriten",
+    "lib.noFavorites": "Keine Favoriten vorhanden.",
+    "lib.noEntries": "Keine Einträge vorhanden.",
+    "media.tracks": "Titel",
+    "media.albums": "Alben",
+    "media.artists": "Interpreten",
+    "media.playlists": "Playlists",
+    "media.radio": "Radio",
+    "media.podcasts": "Podcasts",
+    "media.audiobooks": "Hörbücher",
+    "media.topTracks": "Top-Titel",
+    "media.episodes": "Folgen",
+    "filter.all": "Alles",
+    "label.track": "Titel",
+    "label.album": "Album",
+    "label.artist": "Interpret",
+    "label.playlist": "Playlist",
+    "label.podcast": "Podcast",
+    "sort.relevance": "Relevanz",
+    "sort.name": "Name",
+    "sort.year": "Jahr",
+    "sheet.playNow": "Jetzt abspielen",
+    "sheet.playNext": "Als Nächstes",
+    "sheet.addToQueue": "Hinten anhängen",
+    "sheet.addToPlaylist": "Zur Playlist",
+    "sheet.favDefault": "Favorit …",
+    "sheet.goTo": "Gehe zu",
+    "sheet.open": "Öffnen",
+    "sheet.subtitleWithArtist": "{artist} · auf {player}",
+    "sheet.subtitlePlayerOnly": "auf {player}",
+    "sheet.favChecking": "Favorit wird geprüft …",
+    "sheet.favUnavailable": "Favorit nicht verfügbar",
+    "sheet.favRemoveAction": "♥  Favorit entfernen",
+    "sheet.favAddAction": "♡  Zu Favoriten",
+    "playlistSheet.title": "Zur Playlist hinzufügen",
+    "playlistSheet.createNew": "Neue Playlist …",
+    "playlistSheet.empty": "Noch keine Playlist vorhanden.",
+    "playlistSheet.sectionFavorites": "Favoriten",
+    "playlistSheet.sectionAll": "Alle Playlists",
+    "playlistSheet.loadError": "Fehler beim Laden.",
+    "playlistSheet.added": "„{track}“ zu „{playlist}“ hinzugefügt",
+    "playlistSheet.newPrompt": "Name der neuen Playlist:",
+    "playlistSheet.created": "Playlist erstellt. Bitte auswählen.",
+    "playlistSheet.noTrackSelected": "Kein Titel ausgewählt",
+    "fav.removed": "Aus Favoriten entfernt",
+    "fav.added": "Zu Favoriten hinzugefügt",
+    "fav.noElement": "Kein Element",
+    "internal.noUri": "Keine URI",
+    "group.headPrefix": "Gruppe: {name}",
+    "group.noOtherDevices": "Keine weiteren Geräte in der Gruppe.",
+    "group.remove": "Entfernen",
+    "group.noGroupingSupport": "Dieser Player unterstützt keine Gruppierung.",
+    "group.add": "Hinzufügen",
+    "common.cancel": "Abbrechen",
+    "common.loading": "Wird geladen …",
+    "common.loadError": "Konnte nicht geladen werden ({err}).",
+    "common.noPlayerSelected": "Kein Player gewählt",
+    "toast.credentialsMissing": "Zugangsdaten fehlen. ma-env.js anlegen.",
+    "toast.noWebSocket": "Dieser Browser kann kein WebSocket",
+    "toast.loginRejected": "Anmeldung abgelehnt: {err}",
+    "toast.disconnected": "Verbindung getrennt",
+    "toast.noConnection": "Keine Verbindung",
+    "toast.sendFailed": "Senden fehlgeschlagen",
+    "toast.errorCode": "Fehler {code}",
+    "toast.playersUnavailable": "Player nicht abrufbar: {err}",
+    "toast.favFailed": "Favorit fehlgeschlagen: {err}",
+    "toast.playlistsLoadFailed": "Playlists konnten nicht geladen werden: {err}",
+    "toast.addFailed": "Hinzufügen fehlgeschlagen: {err}",
+    "toast.playlistCreateFailed": "Playlist konnte nicht erstellt werden: {err}",
+    "toast.automixFailed": "Automix konnte nicht gesetzt werden: {err}",
+    "toast.commandFailed": "Befehl fehlgeschlagen: {err}",
+    "toast.playFailed": "Abspielen fehlgeschlagen: {err}",
+    "toast.jumpFailed": "Sprung fehlgeschlagen: {err}",
+    "toast.removeFailed": "Entfernen fehlgeschlagen: {err}",
+    "toast.clearFailed": "Leeren fehlgeschlagen: {err}"
+  },
+  en: {
+    "meta.title": "Music",
+    "top.brand": "Music",
+    "top.allPlayers": "All players",
+    "top.group": "Group",
+    "top.otherDevices": "Other devices",
+    "now.nothingSelected": "Nothing selected",
+    "now.off": "Off",
+    "now.nothingPlaying": "Nothing playing",
+    "now.currentTrackFallback": "Current track",
+    "toggle.shuffle": "Shuffle",
+    "toggle.repeat": "Repeat",
+    "toggle.repeatOne": "Repeat one",
+    "toggle.automix": "Automix",
+    "toast.automixOn": "Automix on",
+    "toast.automixOff": "Automix off",
+    "vol.label": "Vol",
+    "vol.groupVolumeCollapsed": "Group volume ▼",
+    "vol.groupVolumeExpanded": "Group volume ▲",
+    "tab.queue": "Queue",
+    "tab.library": "Library",
+    "tab.search": "Search",
+    "search.placeholder": "Track, artist, album, playlist",
+    "search.button": "Search",
+    "search.hint": "Enter a search term. A result plays on the player selected above.",
+    "search.searching": "Searching …",
+    "search.error": "Search failed ({err}).",
+    "search.noResults": "No matches. Try a different filter, or search more specifically – e.g. “Billy Joel - A Matter of Trust”.",
+    "search.nothingFound": "Nothing found.",
+    "nav.back": "← Back",
+    "crumb.play": "Play",
+    "queue.reload": "Refresh",
+    "queue.clear": "Clear",
+    "queue.noPlayerHint": "No player selected.",
+    "queue.empty": "Queue is empty.",
+    "queue.loadError": "Could not retrieve queue ({err}).",
+    "queue.radioBanner": "📻 <strong>Radio mode active:</strong> Music Assistant keeps generating upcoming tracks dynamically.",
+    "queue.shuffleBanner": "🔀 <strong>Shuffle active:</strong> Track order is being mixed dynamically.",
+    "queue.playingLabel": "Playing: {label}",
+    "queue.addedLabel": "Added to queue: {label}",
+    "toast.queueCleared": "Queue cleared",
+    "lib.hint": "Choose a media type above.",
+    "lib.favOnly": "♥ Favorites only",
+    "lib.noFavorites": "No favorites yet.",
+    "lib.noEntries": "No entries.",
+    "media.tracks": "Tracks",
+    "media.albums": "Albums",
+    "media.artists": "Artists",
+    "media.playlists": "Playlists",
+    "media.radio": "Radio",
+    "media.podcasts": "Podcasts",
+    "media.audiobooks": "Audiobooks",
+    "media.topTracks": "Top tracks",
+    "media.episodes": "Episodes",
+    "filter.all": "All",
+    "label.track": "Track",
+    "label.album": "Album",
+    "label.artist": "Artist",
+    "label.playlist": "Playlist",
+    "label.podcast": "Podcast",
+    "sort.relevance": "Relevance",
+    "sort.name": "Name",
+    "sort.year": "Year",
+    "sheet.playNow": "Play now",
+    "sheet.playNext": "Play next",
+    "sheet.addToQueue": "Add to queue",
+    "sheet.addToPlaylist": "Add to playlist",
+    "sheet.favDefault": "Favorite …",
+    "sheet.goTo": "Go to",
+    "sheet.open": "Open",
+    "sheet.subtitleWithArtist": "{artist} · on {player}",
+    "sheet.subtitlePlayerOnly": "on {player}",
+    "sheet.favChecking": "Checking favorite …",
+    "sheet.favUnavailable": "Favorite unavailable",
+    "sheet.favRemoveAction": "♥  Remove favorite",
+    "sheet.favAddAction": "♡  Add to favorites",
+    "playlistSheet.title": "Add to playlist",
+    "playlistSheet.createNew": "New playlist …",
+    "playlistSheet.empty": "No playlists yet.",
+    "playlistSheet.sectionFavorites": "Favorites",
+    "playlistSheet.sectionAll": "All playlists",
+    "playlistSheet.loadError": "Failed to load.",
+    "playlistSheet.added": "Added “{track}” to “{playlist}”",
+    "playlistSheet.newPrompt": "Name of the new playlist:",
+    "playlistSheet.created": "Playlist created. Please select it.",
+    "playlistSheet.noTrackSelected": "No track selected",
+    "fav.removed": "Removed from favorites",
+    "fav.added": "Added to favorites",
+    "fav.noElement": "No item",
+    "internal.noUri": "No URI",
+    "group.headPrefix": "Group: {name}",
+    "group.noOtherDevices": "No other devices in the group.",
+    "group.remove": "Remove",
+    "group.noGroupingSupport": "This player does not support grouping.",
+    "group.add": "Add",
+    "common.cancel": "Cancel",
+    "common.loading": "Loading …",
+    "common.loadError": "Could not be loaded ({err}).",
+    "common.noPlayerSelected": "No player selected",
+    "toast.credentialsMissing": "Credentials missing. Create ma-env.js.",
+    "toast.noWebSocket": "This browser does not support WebSocket",
+    "toast.loginRejected": "Login rejected: {err}",
+    "toast.disconnected": "Connection lost",
+    "toast.noConnection": "No connection",
+    "toast.sendFailed": "Send failed",
+    "toast.errorCode": "Error {code}",
+    "toast.playersUnavailable": "Players unavailable: {err}",
+    "toast.favFailed": "Favorite failed: {err}",
+    "toast.playlistsLoadFailed": "Could not load playlists: {err}",
+    "toast.addFailed": "Failed to add: {err}",
+    "toast.playlistCreateFailed": "Could not create playlist: {err}",
+    "toast.automixFailed": "Could not set automix: {err}",
+    "toast.commandFailed": "Command failed: {err}",
+    "toast.playFailed": "Playback failed: {err}",
+    "toast.jumpFailed": "Jump failed: {err}",
+    "toast.removeFailed": "Removal failed: {err}",
+    "toast.clearFailed": "Could not clear queue: {err}"
+  }
+};
+
+var LANG_STORAGE_KEY = 'ma-dashboard-lang';
+
+function detectLang() {
+  try {
+    var saved = localStorage.getItem(LANG_STORAGE_KEY);
+    if (saved === 'de' || saved === 'en') { return saved; }
+  } catch (e) { /* Privacy-Modus o.ae. - ignorieren */ }
+  var nav = (navigator.language || navigator.userLanguage || '').toLowerCase();
+  return nav.indexOf('de') === 0 ? 'de' : 'en';
+}
+
+var currentLang = detectLang();
+
+function t(key, vars) {
+  var dict = I18N[currentLang] || I18N.de;
+  var str = (dict && dict[key] !== undefined) ? dict[key] : (I18N.de[key] !== undefined ? I18N.de[key] : key);
+  if (vars) {
+    str = str.replace(/\{(\w+)\}/g, function (m, k) {
+      return vars[k] !== undefined ? vars[k] : m;
+    });
+  }
+  return str;
+}
+
+function applyStaticTranslations() {
+  var nodes = document.querySelectorAll('[data-i18n]');
+  for (var i = 0; i < nodes.length; i++) {
+    setText(nodes[i], t(nodes[i].getAttribute('data-i18n')));
+  }
+  var ph = document.querySelectorAll('[data-i18n-placeholder]');
+  for (var j = 0; j < ph.length; j++) {
+    ph[j].placeholder = t(ph[j].getAttribute('data-i18n-placeholder'));
+  }
+}
+
+function updateLangSwitchUI() {
+  $('langDe').className = 'lang-chip' + (currentLang === 'de' ? ' on' : '');
+  $('langEn').className = 'lang-chip' + (currentLang === 'en' ? ' on' : '');
+}
+
+function applyLanguage() {
+  document.documentElement.lang = currentLang;
+  document.title = t('meta.title');
+  applyStaticTranslations();
+  updateLangSwitchUI();
+  buildStations();
+  renderNow();
+  paintAutomix();
+  if (currentTab === 'library') { buildLibFilters(); loadLibrary(currentLibType); }
+  else if (currentTab === 'search') { buildFilters(); renderStack(); }
+  else if (currentTab === 'queue') { loadQueue(); }
+  else { buildLibFilters(); buildFilters(); }
+  if (groupMenuOpen) { renderGroupMenu(); }
+  if (volMembersOpen) { renderVolumeMembers(); }
+}
+
+function setLang(lang) {
+  currentLang = lang;
+  try { localStorage.setItem(LANG_STORAGE_KEY, lang); } catch (e) { /* egal */ }
+  applyLanguage();
+}
+
+$('langDe').onclick = function () { setLang('de'); };
+$('langEn').onclick = function () { setLang('en'); };
+
 function base() {
   if (CFG.MA) { return CFG.MA.replace(/\/+$/, ''); }
   return location.protocol + '//' + location.host;
@@ -490,11 +818,11 @@ function base() {
 
 var toastTimer = null;
 function toast(msg, isErr) {
-  var t = $('toast');
-  setText(t, msg);
-  t.className = 'toast on' + (isErr ? ' err' : '');
+  var el = $('toast');
+  setText(el, msg);
+  el.className = 'toast on' + (isErr ? ' err' : '');
   if (toastTimer) { clearTimeout(toastTimer); }
-  toastTimer = setTimeout(function () { t.className = 'toast'; }, 3200);
+  toastTimer = setTimeout(function () { el.className = 'toast'; }, 3200);
 }
 
 function fmt(sec) {
@@ -523,9 +851,9 @@ function probeClock() {
     var d = null;
     try { d = x.getResponseHeader('Date'); } catch (e2) { d = null; }
     if (!d) { return; }
-    var t = Date.parse(d);
-    if (isNaN(t)) { return; }
-    clockSkew = t / 1000 - Date.now() / 1000;
+    var parsedMs = Date.parse(d);
+    if (isNaN(parsedMs)) { return; }
+    clockSkew = parsedMs / 1000 - Date.now() / 1000;
   };
   try { x.send(null); } catch (e3) { /* egal, dann bleibt skew 0 */ }
 }
@@ -650,11 +978,11 @@ function setLink(on) {
 function connect() {
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   if (!CFG.TOKEN) {
-    toast('Zugangsdaten fehlen. ma-env.js anlegen.', true);
+    toast(t('toast.credentialsMissing'), true);
     return;
   }
   if (!window.WebSocket) {
-    toast('Dieser Browser kann kein WebSocket', true);
+    toast(t('toast.noWebSocket'), true);
     return;
   }
   try {
@@ -669,7 +997,7 @@ function connect() {
     send('auth', { token: CFG.TOKEN }, function (err) {
       if (err) {
         wsAuthed = false;
-        toast('Anmeldung abgelehnt: ' + err, true);
+        toast(t('toast.loginRejected', { err: err }), true);
         return;
       }
       wsAuthed = true;
@@ -692,7 +1020,7 @@ function teardown() {
   for (var i = 0; i < ids.length; i++) {
     var p = pending[ids[i]];
     delete pending[ids[i]];
-    if (p.cb) { p.cb('Verbindung getrennt', null); }
+    if (p.cb) { p.cb(t('toast.disconnected'), null); }
   }
   scheduleReconnect();
 }
@@ -708,7 +1036,7 @@ function scheduleReconnect() {
 
 function send(command, args, cb) {
   if (!ws || ws.readyState !== 1) {
-    if (cb) { cb('Keine Verbindung', null); }
+    if (cb) { cb(t('toast.noConnection'), null); }
     return;
   }
   msgSeq += 1;
@@ -720,7 +1048,7 @@ function send(command, args, cb) {
     ws.send(JSON.stringify(msg));
   } catch (e) {
     delete pending[id];
-    if (cb) { cb('Senden fehlgeschlagen', null); }
+    if (cb) { cb(t('toast.sendFailed'), null); }
   }
 }
 
@@ -738,7 +1066,7 @@ function onMessage(raw) {
 
   if (msg.error_code !== undefined && msg.error_code !== null) {
     delete pending[id];
-    p.cb(msg.details || ('Fehler ' + msg.error_code), null);
+    p.cb(msg.details || t('toast.errorCode', { code: msg.error_code }), null);
     return;
   }
 
@@ -855,7 +1183,7 @@ function pickDefaultPlayer() {
 
 function bootstrap() {
   send('players/all', null, function (err, list) {
-    if (err) { toast('Player nicht abrufbar: ' + err, true); return; }
+    if (err) { toast(t('toast.playersUnavailable', { err: err }), true); return; }
     players = {};
     for (var i = 0; i < list.length; i++) {
       if (list[i] && list[i].player_id) { players[list[i].player_id] = list[i]; }
@@ -920,7 +1248,7 @@ function selectPlayer(id, force) {
     }
     adoptQueue(activeQueue());
     renderNow();
-    loadSmartFadesMode();
+    loadCrossfadeState();
     if (currentTab === 'queue') { loadQueue(); }
   });
 }
@@ -1002,9 +1330,9 @@ function buildStations() {
    EREIGNISSE
    ================================================================== */
 function handleEvent(msg) {
-  var t = msg.event;
+  var evt = msg.event;
 
-  if (t === 'player_updated' || t === 'player_added') {
+  if (evt === 'player_updated' || evt === 'player_added') {
     if (msg.data && msg.data.player_id) {
       var pid = msg.data.player_id;
       var known = !!players[pid];
@@ -1017,24 +1345,25 @@ function handleEvent(msg) {
     }
     return;
   }
-  if (t === 'player_removed') {
+  if (evt === 'player_removed') {
     if (msg.object_id) { delete players[msg.object_id]; rebuildPlayerOrder(); buildStations(); }
     if (groupMenuOpen) { renderGroupMenu(); positionGroupMenu(activeChipEl()); }
     return;
   }
-  if (t === 'queue_updated' || t === 'queue_added') {
+  if (evt === 'queue_updated' || evt === 'queue_added') {
     if (msg.data && msg.data.queue_id) {
       queues[msg.data.queue_id] = msg.data;
       if (msg.data.queue_id === activeQueueId) {
         adoptQueue(msg.data);
         renderNow();
+        loadCrossfadeState();
         if (currentTab === 'queue') { loadQueue(); }
       }
       buildStations();
     }
     return;
   }
-  if (t === 'queue_time_updated') {
+  if (evt === 'queue_time_updated') {
     /* Kommt nur bei Sprüngen (Seek, Pufferkorrektur) - Anker neu setzen. */
     if (msg.object_id === activeQueueId) {
       anchorPos = typeof msg.data === 'number' ? msg.data : 0;
@@ -1043,11 +1372,11 @@ function handleEvent(msg) {
     }
     return;
   }
-  if (t === 'queue_items_updated') {
+  if (evt === 'queue_items_updated') {
     if (msg.object_id === activeQueueId && currentTab === 'queue') { loadQueue(); }
     return;
   }
-  if (t === 'media_item_updated' || t === 'media_item_added' || t === 'media_item_deleted') {
+  if (evt === 'media_item_updated' || evt === 'media_item_added' || evt === 'media_item_deleted') {
     /* Favoritenstand kann sich geändert haben - betrifft nur die Anzeige. */
     refreshNowFav();
     return;
@@ -1085,7 +1414,7 @@ function renderNow() {
   var albumName = media.album || (mi && mi.album && mi.album.name) || '';
 
   if (!title) {
-    title = (p.powered === false) ? 'Aus' : 'Nichts läuft';
+    title = (p.powered === false) ? t('now.off') : t('now.nothingPlaying');
   }
   setText($('title'), title);
   setText($('artist'), artist);
@@ -1116,7 +1445,7 @@ function renderNow() {
     $('bShuffle').className = 'tgl' + (q.shuffle_enabled ? ' on' : '');
     var rm = q.repeat_mode || 'off';
     $('bRepeat').className = 'tgl' + (rm !== 'off' ? ' on' : '');
-    setText($('bRepeat'), rm === 'one' ? 'Titel wdh.' : 'Wiederholen');
+    setText($('bRepeat'), rm === 'one' ? t('toggle.repeatOne') : t('toggle.repeat'));
   }
 
   var v = (p.volume_level === null || p.volume_level === undefined) ? p.group_volume : p.volume_level;
@@ -1161,13 +1490,13 @@ function renderVolumeMembers() {
     box.innerHTML = '';
     volMembersOpen = false;
     hit.className = 'vol-exp-hit';
-    setText(hit, 'Gruppen-Lautstärke ▼');
+    setText(hit, t('vol.groupVolumeCollapsed'));
     return;
   }
 
   wrap.style.display = 'block';
   hit.className = 'vol-exp-hit' + (volMembersOpen ? ' on' : '');
-  setText(hit, 'Gruppen-Lautstärke ' + (volMembersOpen ? '▲' : '▼'));
+  setText(hit, volMembersOpen ? t('vol.groupVolumeExpanded') : t('vol.groupVolumeCollapsed'));
   box.style.display = volMembersOpen ? 'block' : 'none';
 
   /* Nur bei Bedarf neu aufbauen, damit Slider nicht während der Interaktion
@@ -1253,11 +1582,11 @@ function renderGroupMenu() {
     return;
   }
 
-  setText($('groupMenuHead'), 'Gruppe: ' + playerName(leader));
+  setText($('groupMenuHead'), t('group.headPrefix', { name: playerName(leader) }));
 
   var members = resolveGroupMembers(leader, false);
   if (!members.length) {
-    activeBox.innerHTML = '<div class="hint">Keine weiteren Geräte in der Gruppe.</div>';
+    activeBox.innerHTML = '<div class="hint">' + t('group.noOtherDevices') + '</div>';
   } else {
     for (var i = 0; i < members.length; i++) {
       (function (mid) {
@@ -1268,7 +1597,7 @@ function renderGroupMenu() {
         setText(nm, playerName(mid));
         var btn = document.createElement('button');
         btn.className = 'gbtn remove';
-        setText(btn, 'Entfernen');
+        setText(btn, t('group.remove'));
         btn.onclick = function () { cmd('players/cmd/ungroup', { player_id: mid }); };
         row.appendChild(nm);
         row.appendChild(btn);
@@ -1280,7 +1609,7 @@ function renderGroupMenu() {
   var canGroup = lp.supported_features && lp.supported_features.indexOf('set_members') >= 0;
   if (!canGroup) {
     othersHead.style.display = 'none';
-    othersBox.innerHTML = '<div class="hint">Dieser Player unterstützt keine Gruppierung.</div>';
+    othersBox.innerHTML = '<div class="hint">' + t('group.noGroupingSupport') + '</div>';
     return;
   }
 
@@ -1313,7 +1642,7 @@ function renderGroupMenu() {
       setText(nm, playerName(cid));
       var btn = document.createElement('button');
       btn.className = 'gbtn add';
-      setText(btn, 'Hinzufügen');
+      setText(btn, t('group.add'));
       btn.onclick = function () { cmd('players/cmd/group', { player_id: cid, target_player: leader }); };
       row.appendChild(nm);
       row.appendChild(btn);
@@ -1384,7 +1713,7 @@ function tick() {
    liefert bevorzugt das Bibliothekselement mitsamt favorite-Flag.
    ================================================================== */
 function resolveItem(uri, cb) {
-  if (!uri) { cb('Keine URI', null); return; }
+  if (!uri) { cb(t('internal.noUri'), null); return; }
   send('music/item_by_uri', { uri: uri, allow_update_metadata: false }, cb);
 }
 
@@ -1408,7 +1737,7 @@ function resolveProviderRef(it) {
 }
 
 function toggleFav(it, cb) {
-  if (!it) { cb('Kein Element'); return; }
+  if (!it) { cb(t('fav.noElement')); return; }
   if (it.favorite && isLibraryItem(it)) {
     send('music/favorites/remove_item', {
       media_type: it.media_type,
@@ -1441,15 +1770,15 @@ $('npHeart').onclick = function () {
   if (!npFav) { return; }
   var was = !!npFav.favorite;
   toggleFav(npFav, function (err) {
-    if (err) { toast('Favorit fehlgeschlagen: ' + err, true); return; }
-    toast(was ? 'Aus Favoriten entfernt' : 'Zu Favoriten hinzugefügt');
+    if (err) { toast(t('toast.favFailed', { err: err }), true); return; }
+    toast(was ? t('fav.removed') : t('fav.added'));
     setTimeout(refreshNowFav, 600);
   });
 };
 
 $('npAdd').onclick = function () {
   if (!npUri) { return; }
-  openPlaylistSheet(npUri, $('title').textContent || 'Aktueller Titel');
+  openPlaylistSheet(npUri, $('title').textContent || t('now.currentTrackFallback'));
 };
 
 /* ==================================================================
@@ -1479,14 +1808,14 @@ function loadUserPlaylists(cb) {
 }
 
 function openPlaylistSheet(uri, name) {
-  if (!uri) { toast('Kein Titel ausgewählt', true); return; }
-  playlistSheetTarget = { uri: uri, name: name || 'Titel' };
+  if (!uri) { toast(t('playlistSheet.noTrackSelected'), true); return; }
+  playlistSheetTarget = { uri: uri, name: name || t('label.track') };
   setText($('playlistSheetSub'), playlistSheetTarget.name);
   $('playlistSheetbg').className = 'sheetbg on';
   renderPlaylistList(true);
   loadUserPlaylists(function (err) {
     if (err) {
-      toast('Playlists konnten nicht geladen werden: ' + err, true);
+      toast(t('toast.playlistsLoadFailed', { err: err }), true);
       renderPlaylistListError();
       return;
     }
@@ -1498,11 +1827,11 @@ function renderPlaylistList(loading) {
   var box = $('playlistList');
   box.innerHTML = '';
   if (loading) {
-    box.innerHTML = '<div class="hint">Wird geladen …</div>';
+    box.innerHTML = '<div class="hint">' + t('common.loading') + '</div>';
     return;
   }
   if (!userPlaylists.length) {
-    box.innerHTML = '<div class="hint">Noch keine Playlist vorhanden.</div>';
+    box.innerHTML = '<div class="hint">' + t('playlistSheet.empty') + '</div>';
     return;
   }
   var sawFav = false;
@@ -1513,18 +1842,18 @@ function renderPlaylistList(loading) {
         sawFav = true;
         var favSec = document.createElement('div');
         favSec.className = 'pl-sec';
-        setText(favSec, 'Favoriten');
+        setText(favSec, t('playlistSheet.sectionFavorites'));
         box.appendChild(favSec);
       } else if (!pl.favorite && !sawAll) {
         sawAll = true;
         var allSec = document.createElement('div');
         allSec.className = 'pl-sec';
-        setText(allSec, 'Alle Playlists');
+        setText(allSec, t('playlistSheet.sectionAll'));
         box.appendChild(allSec);
       }
       var btn = document.createElement('button');
       btn.className = 'act';
-      setText(btn, pl.name || 'Playlist');
+      setText(btn, pl.name || t('label.playlist'));
       btn.onclick = function () { addToPlaylist(pl); };
       box.appendChild(btn);
     })(userPlaylists[i]);
@@ -1533,7 +1862,7 @@ function renderPlaylistList(loading) {
 
 function renderPlaylistListError() {
   var box = $('playlistList');
-  box.innerHTML = '<div class="hint">Fehler beim Laden.</div>';
+  box.innerHTML = '<div class="hint">' + t('playlistSheet.loadError') + '</div>';
 }
 
 function addToPlaylist(playlist) {
@@ -1543,25 +1872,25 @@ function addToPlaylist(playlist) {
     uris: [playlistSheetTarget.uri]
   }, function (err) {
     if (err) {
-      toast('Hinzufügen fehlgeschlagen: ' + err, true);
+      toast(t('toast.addFailed', { err: err }), true);
       return;
     }
     closePlaylistSheet();
-    toast('„' + playlistSheetTarget.name + '“ zu „' + (playlist.name || 'Playlist') + '“ hinzugefügt');
+    toast(t('playlistSheet.added', { track: playlistSheetTarget.name, playlist: playlist.name || t('label.playlist') }));
   });
 }
 
 function createPlaylistAndAdd() {
-  var name = window.prompt('Name der neuen Playlist:', '');
+  var name = window.prompt(t('playlistSheet.newPrompt'), '');
   if (!name) { return; }
   send('music/playlists/create_playlist', { name: name }, function (err, pl) {
-    if (err) { toast('Playlist konnte nicht erstellt werden: ' + err, true); return; }
+    if (err) { toast(t('toast.playlistCreateFailed', { err: err }), true); return; }
     if (pl && pl.item_id) {
       addToPlaylist(pl);
     } else {
       loadUserPlaylists(function () {
         renderPlaylistList(false);
-        toast('Playlist erstellt. Bitte auswählen.');
+        toast(t('playlistSheet.created'));
       });
     }
   });
@@ -1581,61 +1910,56 @@ $('playlistSheetbg').onclick = function (e) {
 /* ==================================================================
    AUTOMIX / SMART CROSSFADE
    ==================================================================
-   MA speichert den Crossfade-Modus als Player-Config-Eintrag
-   smart_fades_mode. Während laufender Wiedergabe muss zum Aktivieren
-   kurz pausiert werden, damit der Audio-Stream den neuen Modus greift.
+   Ab MA-Server 2.10.0 (music-assistant/server#4373) ist Crossfade eine
+   Queue-Einstellung (players_queues/crossfade, Feld crossfade_enabled
+   auf dem PlayerQueue-Objekt) statt einer Player-Config
+   (config/players/*, smart_fades_mode). Kein Fallback für ältere
+   Server. Während laufender Wiedergabe muss zum Aktivieren kurz
+   pausiert werden, damit der Audio-Stream den neuen Modus greift.
    ================================================================== */
-var SMART_FADES_KEY = 'smart_fades_mode';
-var SMART_FADES_ON = 'smart_crossfade';
-var SMART_FADES_OFF = 'disabled';
-var smartFadesMode = SMART_FADES_OFF;
+var crossfadeEnabled = false;
 
 function paintAutomix() {
-  $('bAutomix').className = 'tgl' + (smartFadesMode === SMART_FADES_ON ? ' on' : '');
+  $('bAutomix').className = 'tgl' + (crossfadeEnabled ? ' on' : '');
 }
 
-function loadSmartFadesMode() {
-  if (!activeId) { smartFadesMode = SMART_FADES_OFF; paintAutomix(); return; }
-  send('config/players/get_value', { player_id: activeId, key: SMART_FADES_KEY }, function (err, val) {
-    if (err) { smartFadesMode = SMART_FADES_OFF; paintAutomix(); return; }
-    smartFadesMode = (val === SMART_FADES_ON) ? SMART_FADES_ON : SMART_FADES_OFF;
-    paintAutomix();
-  });
+function loadCrossfadeState() {
+  var q = activeQueue();
+  crossfadeEnabled = !!(q && q.crossfade_enabled);
+  paintAutomix();
 }
 
 function toggleAutomix() {
-  if (!activeId) { toast('Kein Player gewählt', true); return; }
+  if (!activeId) { toast(t('common.noPlayerSelected'), true); return; }
 
   var wasPlaying = isPlaying;
-  var nextMode = smartFadesMode === SMART_FADES_ON ? SMART_FADES_OFF : SMART_FADES_ON;
-  var saveArgs = { player_id: activeId, values: {} };
-  saveArgs.values[SMART_FADES_KEY] = nextMode;
+  var nextState = !crossfadeEnabled;
 
-  function saveAndResume() {
-    send('config/players/save', saveArgs, function (err) {
+  function setAndResume() {
+    send('player_queues/crossfade', { queue_id: activeQueueId, crossfade_enabled: nextState }, function (err) {
       if (err) {
-        toast('Automix konnte nicht gesetzt werden: ' + err, true);
+        toast(t('toast.automixFailed', { err: err }), true);
         if (wasPlaying) { cmd('players/cmd/play_pause', { player_id: activeId }); }
         return;
       }
-      smartFadesMode = nextMode;
+      crossfadeEnabled = nextState;
       paintAutomix();
       if (wasPlaying) {
         setTimeout(function () {
           cmd('players/cmd/play_pause', { player_id: activeId });
         }, 300);
       } else {
-        toast(nextMode === SMART_FADES_ON ? 'Automix ein' : 'Automix aus');
+        toast(nextState ? t('toast.automixOn') : t('toast.automixOff'));
       }
     });
   }
 
   if (wasPlaying) {
     cmd('players/cmd/play_pause', { player_id: activeId }, function () {
-      setTimeout(saveAndResume, 300);
+      setTimeout(setAndResume, 300);
     });
   } else {
-    saveAndResume();
+    setAndResume();
   }
 }
 
@@ -1650,7 +1974,7 @@ $('bAutomix').onclick = toggleAutomix;
    ================================================================== */
 function cmd(command, args, after) {
   send(command, args, function (err) {
-    if (err) { toast('Befehl fehlgeschlagen: ' + err, true); return; }
+    if (err) { toast(t('toast.commandFailed', { err: err }), true); return; }
     if (after) { after(); }
   });
 }
@@ -1842,10 +2166,10 @@ function renderTabs(top) {
   box.innerHTML = '';
   for (var i = 0; i < top.tabs.length; i++) {
     (function (idx) {
-      var t = top.tabs[idx];
+      var tabDef = top.tabs[idx];
       var el = document.createElement('div');
       el.className = 'filt' + (idx === (top.activeTab || 0) ? ' on' : '');
-      el.appendChild(document.createTextNode(t.label || t.key));
+      el.appendChild(document.createTextNode(tabDef.lKey ? t(tabDef.lKey) : (tabDef.label || tabDef.key)));
       el.onclick = function () { switchViewTab(top, idx); };
       box.appendChild(el);
     })(i);
@@ -1857,7 +2181,7 @@ function renderTabs(top) {
       (function (s) {
         var el = document.createElement('div');
         el.className = 'filt' + (s.k === artistSortMode ? ' on' : '');
-        el.appendChild(document.createTextNode(s.l));
+        el.appendChild(document.createTextNode(s.lKey ? t(s.lKey) : s.l));
         el.onclick = function () { artistSortMode = s.k; renderStack(); };
         box.appendChild(el);
       })(SORT_MODES[j]);
@@ -1895,8 +2219,8 @@ function renderStack() {
     if (!top.resolved) { return; }
     var was = !!top.resolved.favorite;
     toggleFav(top.resolved, function (err) {
-      if (err) { toast('Favorit fehlgeschlagen: ' + err, true); return; }
-      toast(was ? 'Aus Favoriten entfernt' : 'Zu Favoriten hinzugefügt');
+      if (err) { toast(t('toast.favFailed', { err: err }), true); return; }
+      toast(was ? t('fav.removed') : t('fav.added'));
       setTimeout(function () { loadCrumbFav(top); }, 600);
     });
   };
@@ -1913,7 +2237,7 @@ function renderStack() {
     }
   }
 
-  box.innerHTML = '<div class="hint">Wird geladen …</div>';
+  box.innerHTML = '<div class="hint">' + t('common.loading') + '</div>';
   var loader = getActiveLoader(top);
   loader.call(top, function (err, sections) {
     if (stack[stack.length - 1] !== top) { return; }   /* zwischenzeitlich weitergeblättert */
@@ -1921,7 +2245,7 @@ function renderStack() {
       box.innerHTML = '';
       var h = document.createElement('div');
       h.className = 'hint';
-      setText(h, 'Konnte nicht geladen werden (' + err + ').');
+      setText(h, t('common.loadError', { err: err }));
       box.appendChild(h);
       return;
     }
@@ -1973,7 +2297,7 @@ function renderSections(sections) {
     }
   }
   if (!any) {
-    box.innerHTML = '<div class="hint">Nichts gefunden.</div>';
+    box.innerHTML = '<div class="hint">' + t('search.nothingFound') + '</div>';
   }
 }
 
@@ -1993,8 +2317,8 @@ function openItem(it, mt) {
 function openArtist(a) {
   var args = resolveProviderRef(a);
   var v = {
-    title: a.name || 'Interpret',
-    sub: 'Interpret',
+    title: a.name || t('label.artist'),
+    sub: t('label.artist'),
     item: a,
     resolved: null,
     activeTab: 0,
@@ -2002,13 +2326,13 @@ function openArtist(a) {
     tabs: [
       {
         key: 'toptracks',
-        label: 'Top-Titel',
+        lKey: 'media.topTracks',
         sortable: false,
         load: function (cb) {
           send('music/artists/top_tracks', args, function (err, tracks) {
             if (err) { cb(err, null); return; }
             cb(null, [{
-              label: 'Top-Titel', type: 'track', items: tracks || [],
+              label: t('media.topTracks'), type: 'track', items: tracks || [],
               opts: function (x, i) { return { index: i + 1, sub: albumOf(x) }; }
             }]);
           });
@@ -2016,13 +2340,13 @@ function openArtist(a) {
       },
       {
         key: 'tracks',
-        label: 'Titel',
+        lKey: 'media.tracks',
         sortable: true,
         load: function (cb) {
           send('music/artists/artist_tracks', args, function (err, tracks) {
             if (err) { cb(err, null); return; }
             cb(null, [{
-              label: 'Titel', type: 'track', items: tracks || [],
+              label: t('media.tracks'), type: 'track', items: tracks || [],
               opts: function (x, i) { return { index: i + 1, sub: albumOf(x) }; }
             }]);
           });
@@ -2030,13 +2354,13 @@ function openArtist(a) {
       },
       {
         key: 'albums',
-        label: 'Alben',
+        lKey: 'media.albums',
         sortable: true,
         load: function (cb) {
           send('music/artists/artist_albums', args, function (err, albums) {
             if (err) { cb(err, null); return; }
             cb(null, [{
-              label: 'Alben', type: 'album', items: albums || [],
+              label: t('media.albums'), type: 'album', items: albums || [],
               opts: function (x) { return { sub: yearOf(x) }; }
             }]);
           });
@@ -2050,7 +2374,7 @@ function openArtist(a) {
 
 function openAlbum(al) {
   var v = {
-    title: al.name || 'Album',
+    title: al.name || t('label.album'),
     sub: artistsOf(al) + (yearOf(al) ? ' · ' + yearOf(al) : ''),
     item: al,
     resolved: null,
@@ -2061,7 +2385,7 @@ function openAlbum(al) {
       }, function (err, tracks) {
         if (err) { cb(err, null); return; }
         cb(null, [{
-          label: 'Titel', type: 'track', items: tracks || [],
+          label: t('media.tracks'), type: 'track', items: tracks || [],
           opts: function (x, i) {
             return { index: x.track_number || (i + 1), sub: artistsOf(x), startFrom: al };
           }
@@ -2075,8 +2399,8 @@ function openAlbum(al) {
 
 function openPlaylist(pl) {
   var v = {
-    title: pl.name || 'Playlist',
-    sub: 'Playlist' + (pl.owner ? ' · ' + pl.owner : ''),
+    title: pl.name || t('label.playlist'),
+    sub: t('label.playlist') + (pl.owner ? ' · ' + pl.owner : ''),
     item: pl,
     resolved: null,
     load: function (cb) {
@@ -2086,7 +2410,7 @@ function openPlaylist(pl) {
       }, function (err, tracks) {
         if (err) { cb(err, null); return; }
         cb(null, [{
-          label: 'Titel', type: 'track', items: tracks || [],
+          label: t('media.tracks'), type: 'track', items: tracks || [],
           opts: function (x, i) { return { index: i + 1, sub: artistsOf(x), startFrom: pl }; }
         }]);
       });
@@ -2098,8 +2422,8 @@ function openPlaylist(pl) {
 
 function openPodcast(pc) {
   var v = {
-    title: pc.name || 'Podcast',
-    sub: 'Podcast',
+    title: pc.name || t('label.podcast'),
+    sub: t('label.podcast'),
     item: pc,
     resolved: null,
     load: function (cb) {
@@ -2109,7 +2433,7 @@ function openPodcast(pc) {
       }, function (err, eps) {
         if (err) { cb(err, null); return; }
         cb(null, [{
-          label: 'Folgen', type: 'podcast_episode', items: eps || [],
+          label: t('media.episodes'), type: 'podcast_episode', items: eps || [],
           opts: function (x, i) { return { index: i + 1, sub: '' }; }
         }]);
       });
@@ -2119,7 +2443,7 @@ function openPodcast(pc) {
   loadCrumbFav(v);
 }
 
-function albumOf(t) { return (t.album && t.album.name) || ''; }
+function albumOf(tr) { return (tr.album && tr.album.name) || ''; }
 function yearOf(a) { return a.year ? String(a.year) : ''; }
 
 function sortMediaItems(items, mode) {
@@ -2142,28 +2466,28 @@ function sortMediaItems(items, mode) {
    SUCHE
    ================================================================== */
 var FILTERS = [
-  { k: 'all',      l: 'Alles' },
-  { k: 'track',    l: 'Titel' },
-  { k: 'album',    l: 'Album' },
-  { k: 'artist',   l: 'Interpret' },
-  { k: 'playlist', l: 'Playlist' },
-  { k: 'radio',    l: 'Radio' }
+  { k: 'all',      lKey: 'filter.all' },
+  { k: 'track',    lKey: 'media.tracks' },
+  { k: 'album',    lKey: 'media.albums' },
+  { k: 'artist',   lKey: 'media.artists' },
+  { k: 'playlist', lKey: 'media.playlists' },
+  { k: 'radio',    lKey: 'media.radio' }
 ];
 var GROUPS = [
-  { key: 'tracks',     label: 'Titel',       type: 'track' },
-  { key: 'albums',     label: 'Alben',       type: 'album' },
-  { key: 'artists',    label: 'Interpreten', type: 'artist' },
-  { key: 'playlists',  label: 'Playlists',   type: 'playlist' },
-  { key: 'radio',      label: 'Radio',       type: 'radio' },
-  { key: 'podcasts',   label: 'Podcasts',    type: 'podcast' },
-  { key: 'audiobooks', label: 'Hörbücher',   type: 'audiobook' }
+  { key: 'tracks',     lKey: 'media.tracks',     type: 'track' },
+  { key: 'albums',     lKey: 'media.albums',     type: 'album' },
+  { key: 'artists',    lKey: 'media.artists',    type: 'artist' },
+  { key: 'playlists',  lKey: 'media.playlists',  type: 'playlist' },
+  { key: 'radio',      lKey: 'media.radio',      type: 'radio' },
+  { key: 'podcasts',   lKey: 'media.podcasts',   type: 'podcast' },
+  { key: 'audiobooks', lKey: 'media.audiobooks', type: 'audiobook' }
 ];
 var searchType = 'all';
 var lastResults = null;
 var SEARCH_SORTS = [
-  { k: 'relevance', l: 'Relevanz' },
-  { k: 'name',      l: 'Name' },
-  { k: 'year',      l: 'Jahr' }
+  { k: 'relevance', lKey: 'sort.relevance' },
+  { k: 'name',      lKey: 'sort.name' },
+  { k: 'year',      lKey: 'sort.year' }
 ];
 var searchSortMode = 'relevance';
 
@@ -2174,7 +2498,7 @@ function buildFilters() {
     (function (f) {
       var el = document.createElement('div');
       el.className = 'filt' + (f.k === searchType ? ' on' : '');
-      el.appendChild(document.createTextNode(f.l));
+      el.appendChild(document.createTextNode(t(f.lKey)));
       el.onclick = function () {
         searchType = f.k;
         buildFilters();
@@ -2187,7 +2511,7 @@ function buildFilters() {
     (function (s) {
       var el = document.createElement('div');
       el.className = 'filt' + (s.k === searchSortMode ? ' on' : '');
-      el.appendChild(document.createTextNode(s.l));
+      el.appendChild(document.createTextNode(t(s.lKey)));
       el.onclick = function () {
         searchSortMode = s.k;
         buildFilters();
@@ -2202,7 +2526,7 @@ function doSearch() {
   var q = $('q').value;
   if (!q) { return; }
   resetStack();
-  $('results').innerHTML = '<div class="hint">Wird gesucht …</div>';
+  $('results').innerHTML = '<div class="hint">' + t('search.searching') + '</div>';
   var args = { search_query: q, limit: CFG.SEARCH_LIMIT };
   if (searchType !== 'all') { args.media_types = [searchType]; }
   send('music/search', args, function (err, res) {
@@ -2210,7 +2534,7 @@ function doSearch() {
       $('results').innerHTML = '';
       var h = document.createElement('div');
       h.className = 'hint';
-      setText(h, 'Suche fehlgeschlagen (' + err + ').');
+      setText(h, t('search.error', { err: err }));
       $('results').appendChild(h);
       return;
     }
@@ -2222,7 +2546,7 @@ function doSearch() {
 function renderResults(res) {
   var box = $('results');
   if (!res) {
-    box.innerHTML = '<div class="hint">Suchbegriff eingeben. Ein Treffer wird auf dem oben gewählten Player abgespielt.</div>';
+    box.innerHTML = '<div class="hint">' + t('search.hint') + '</div>';
     return;
   }
   var sections = [];
@@ -2230,13 +2554,13 @@ function renderResults(res) {
     var grp = GROUPS[g];
     var secItems = (res[grp.key] || []).slice();
     if (searchSortMode !== 'relevance') { sortMediaItems(secItems, searchSortMode); }
-    sections.push({ label: grp.label, type: grp.type, items: secItems });
+    sections.push({ label: t(grp.lKey), type: grp.type, items: secItems });
   }
   renderSections(sections);
   var any = false;
   for (var i = 0; i < sections.length; i++) { if (sections[i].items.length) { any = true; } }
   if (!any) {
-    box.innerHTML = '<div class="hint">Keine Treffer. Anderen Filter probieren, oder genauer suchen – z. B. „Billy Joel - A Matter of Trust“.</div>';
+    box.innerHTML = '<div class="hint">' + t('search.noResults') + '</div>';
   }
 }
 
@@ -2252,7 +2576,11 @@ function openSheet(it, type, opts) {
   pending2 = { item: it, type: type || it.media_type, opts: opts || {}, resolved: null };
   setText($('sheetTitle'), it.name || '—');
   var who = artistsOf(it);
-  setText($('sheetSub'), (who ? who + ' · ' : '') + 'auf ' + playerName(activeId));
+  if (who) {
+    setText($('sheetSub'), t('sheet.subtitleWithArtist', { artist: who, player: playerName(activeId) }));
+  } else {
+    setText($('sheetSub'), t('sheet.subtitlePlayerOnly', { player: playerName(activeId) }));
+  }
 
   /* "Öffnen" nur, wenn es eine Detailansicht gibt und wir nicht schon drin sind */
   var mt = pending2.type;
@@ -2269,13 +2597,13 @@ function openSheet(it, type, opts) {
                $('aAlbum').className.indexOf('gone') < 0;
   $('aNavSep').style.display = anyNav ? 'block' : 'none';
 
-  setText($('aFav'), 'Favorit wird geprüft …');
+  setText($('aFav'), t('sheet.favChecking'));
   $('aFav').className = 'act fav';
   resolveItem(it.uri, function (err, resolved) {
     if (!pending2 || pending2.item !== it) { return; }
-    if (err) { setText($('aFav'), 'Favorit nicht verfügbar'); return; }
+    if (err) { setText($('aFav'), t('sheet.favUnavailable')); return; }
     pending2.resolved = resolved;
-    setText($('aFav'), resolved.favorite ? '♥  Favorit entfernen' : '♡  Zu Favoriten');
+    setText($('aFav'), resolved.favorite ? t('sheet.favRemoveAction') : t('sheet.favAddAction'));
   });
 
   $('sheetbg').className = 'sheetbg on';
@@ -2285,7 +2613,7 @@ function closeSheet() { $('sheetbg').className = 'sheetbg'; pending2 = null; }
 
 function playPending(option) {
   if (!pending2) { return; }
-  if (!activeQueueId) { toast('Kein Player gewählt', true); return; }
+  if (!activeQueueId) { toast(t('common.noPlayerSelected'), true); return; }
   var it = pending2.item;
   var args = { queue_id: activeQueueId, media: it.uri, option: option };
   /* Aus einer Album-/Playlist-Ansicht heraus soll ein Titel nicht allein
@@ -2298,8 +2626,8 @@ function playPending(option) {
   var label = it.name;
   closeSheet();
   send('player_queues/play_media', args, function (err) {
-    if (err) { toast('Abspielen fehlgeschlagen: ' + err, true); return; }
-    toast(option === 'replace' ? ('Läuft: ' + label) : ('Zur Warteschlange: ' + label));
+    if (err) { toast(t('toast.playFailed', { err: err }), true); return; }
+    toast(option === 'replace' ? t('queue.playingLabel', { label: label }) : t('queue.addedLabel', { label: label }));
   });
 }
 
@@ -2312,8 +2640,8 @@ $('aFav').onclick  = function () {
   var was = !!res.favorite;
   closeSheet();
   toggleFav(res, function (err) {
-    if (err) { toast('Favorit fehlgeschlagen: ' + err, true); return; }
-    toast(was ? 'Aus Favoriten entfernt' : 'Zu Favoriten hinzugefügt');
+    if (err) { toast(t('toast.favFailed', { err: err }), true); return; }
+    toast(was ? t('fav.removed') : t('fav.added'));
     setTimeout(refreshNowFav, 600);
   });
 };
@@ -2349,19 +2677,19 @@ $('sheetbg').onclick = function (e) { if (e.target === $('sheetbg')) { closeShee
    BIBLIOTHEK
    ================================================================== */
 var LIB_TYPES = [
-  { k: 'playlist',  l: 'Playlists',   cmd: 'music/playlists/library_items',  type: 'playlist' },
-  { k: 'artist',    l: 'Interpreten', cmd: 'music/artists/library_items',    type: 'artist' },
-  { k: 'album',     l: 'Alben',       cmd: 'music/albums/library_items',     type: 'album' },
-  { k: 'track',     l: 'Titel',       cmd: 'music/tracks/library_items',     type: 'track' },
-  { k: 'radio',     l: 'Radio',       cmd: 'music/radios/library_items',     type: 'radio' },
-  { k: 'podcast',   l: 'Podcasts',    cmd: 'music/podcasts/library_items',   type: 'podcast' },
-  { k: 'audiobook', l: 'Hörbücher',   cmd: 'music/audiobooks/library_items', type: 'audiobook' }
+  { k: 'playlist',  lKey: 'media.playlists',   cmd: 'music/playlists/library_items',  type: 'playlist' },
+  { k: 'artist',    lKey: 'media.artists',     cmd: 'music/artists/library_items',    type: 'artist' },
+  { k: 'album',     lKey: 'media.albums',      cmd: 'music/albums/library_items',     type: 'album' },
+  { k: 'track',     lKey: 'media.tracks',      cmd: 'music/tracks/library_items',     type: 'track' },
+  { k: 'radio',     lKey: 'media.radio',       cmd: 'music/radios/library_items',     type: 'radio' },
+  { k: 'podcast',   lKey: 'media.podcasts',    cmd: 'music/podcasts/library_items',   type: 'podcast' },
+  { k: 'audiobook', lKey: 'media.audiobooks',  cmd: 'music/audiobooks/library_items', type: 'audiobook' }
 ];
 var currentLibType = 'playlist';
 var libFavOnly = false;
 var SORT_MODES = [
-  { k: 'name', l: 'Name' },
-  { k: 'year', l: 'Jahr' }
+  { k: 'name', lKey: 'sort.name' },
+  { k: 'year', lKey: 'sort.year' }
 ];
 var libSortMode = 'name';
 
@@ -2373,7 +2701,7 @@ function buildLibFilters() {
   (function () {
     var el = document.createElement('div');
     el.className = 'filt fav' + (libFavOnly ? ' on' : '');
-    el.innerHTML = '&#9829; Nur Favoriten';
+    setText(el, t('lib.favOnly'));
     el.onclick = function () {
       libFavOnly = !libFavOnly;
       buildLibFilters();
@@ -2386,7 +2714,7 @@ function buildLibFilters() {
     (function (def) {
       var el = document.createElement('div');
       el.className = 'filt' + (def.k === currentLibType ? ' on' : '');
-      el.appendChild(document.createTextNode(def.l));
+      el.appendChild(document.createTextNode(t(def.lKey)));
       el.onclick = function () {
         currentLibType = def.k;
         buildLibFilters();
@@ -2400,7 +2728,7 @@ function buildLibFilters() {
     (function (s) {
       var el = document.createElement('div');
       el.className = 'filt' + (s.k === libSortMode ? ' on' : '');
-      el.appendChild(document.createTextNode(s.l));
+      el.appendChild(document.createTextNode(t(s.lKey)));
       el.onclick = function () {
         libSortMode = s.k;
         buildLibFilters();
@@ -2418,7 +2746,7 @@ function loadLibrary(typeKey) {
   }
   if (!def) { return; }
   var box = $('libResults');
-  box.innerHTML = '<div class="hint">Wird geladen …</div>';
+  box.innerHTML = '<div class="hint">' + t('common.loading') + '</div>';
   var want = typeKey;
   send(def.cmd, { limit: CFG.LIST_LIMIT, offset: 0, order_by: 'name' }, function (err, items) {
     if (want !== currentLibType) { return; }
@@ -2426,7 +2754,7 @@ function loadLibrary(typeKey) {
       box.innerHTML = '';
       var h = document.createElement('div');
       h.className = 'hint';
-      setText(h, 'Konnte nicht geladen werden (' + err + ').');
+      setText(h, t('common.loadError', { err: err }));
       box.appendChild(h);
       return;
     }
@@ -2438,7 +2766,7 @@ function loadLibrary(typeKey) {
     }
     sortMediaItems(items, libSortMode);
     if (!items || !items.length) {
-      box.innerHTML = '<div class="hint">' + (libFavOnly ? 'Keine Favoriten vorhanden.' : 'Keine Einträge vorhanden.') + '</div>';
+      box.innerHTML = '<div class="hint">' + (libFavOnly ? t('lib.noFavorites') : t('lib.noEntries')) + '</div>';
       return;
     }
     for (var j = 0; j < items.length; j++) {
@@ -2487,7 +2815,7 @@ function enterDetail() {
 (function wireTabs() {
   var tabs = document.getElementsByClassName('tab');
   for (var i = 0; i < tabs.length; i++) {
-    (function (t) { t.onclick = function () { navOriginTab = null; switchTab(t.getAttribute('data-tab')); }; })(tabs[i]);
+    (function (tabEl) { tabEl.onclick = function () { navOriginTab = null; switchTab(tabEl.getAttribute('data-tab')); }; })(tabs[i]);
   }
 })();
 
@@ -2495,8 +2823,8 @@ var QUEUE_HISTORY_LIMIT = 3;
 
 function loadQueue() {
   var box = $('queue');
-  if (!activeQueueId) { box.innerHTML = '<div class="hint">Kein Player gewählt.</div>'; return; }
-  box.innerHTML = '<div class="hint">Wird geladen …</div>';
+  if (!activeQueueId) { box.innerHTML = '<div class="hint">' + t('queue.noPlayerHint') + '</div>'; return; }
+  box.innerHTML = '<div class="hint">' + t('common.loading') + '</div>';
   var qid = activeQueueId;
   send('player_queues/items', { queue_id: qid, limit: 500 }, function (err, items) {
     if (qid !== activeQueueId) { return; }
@@ -2504,7 +2832,7 @@ function loadQueue() {
       box.innerHTML = '';
       var h = document.createElement('div');
       h.className = 'hint';
-      setText(h, 'Warteschlange nicht abrufbar (' + err + ').');
+      setText(h, t('queue.loadError', { err: err }));
       box.appendChild(h);
       return;
     }
@@ -2513,19 +2841,19 @@ function loadQueue() {
     if (q && q.radio_mode) {
       var rBanner = document.createElement('div');
       rBanner.className = 'queue-banner';
-      rBanner.innerHTML = '&#128251; <strong>Radiomodus aktiv:</strong> Music Assistant generiert Folgetitel fortlaufend dynamisch.';
+      rBanner.innerHTML = t('queue.radioBanner');
       box.appendChild(rBanner);
     } else if (q && q.shuffle_enabled) {
       var sBanner = document.createElement('div');
       sBanner.className = 'queue-banner';
-      sBanner.innerHTML = '&#128256; <strong>Zufallswiedergabe aktiv:</strong> Titelreihenfolge wird dynamisch gemischt.';
+      sBanner.innerHTML = t('queue.shuffleBanner');
       box.appendChild(sBanner);
     }
 
     if (!items || !items.length) {
       var emptyHint = document.createElement('div');
       emptyHint.className = 'hint';
-      setText(emptyHint, 'Warteschlange ist leer.');
+      setText(emptyHint, t('queue.empty'));
       box.appendChild(emptyHint);
       return;
     }
@@ -2570,7 +2898,7 @@ function queueRow(qi, index, isCurrent) {
   main.onclick = function () {
     send('player_queues/play_index', { queue_id: activeQueueId, index: qi.queue_item_id },
       function (err) {
-        if (err) { toast('Sprung fehlgeschlagen: ' + err, true); return; }
+        if (err) { toast(t('toast.jumpFailed', { err: err }), true); return; }
         setTimeout(loadQueue, 800);
       });
   };
@@ -2583,7 +2911,7 @@ function queueRow(qi, index, isCurrent) {
     if (e && e.stopPropagation) { e.stopPropagation(); }
     send('player_queues/delete_item', { queue_id: activeQueueId, item_id_or_index: qi.queue_item_id },
       function (err) {
-        if (err) { toast('Entfernen fehlgeschlagen: ' + err, true); return; }
+        if (err) { toast(t('toast.removeFailed', { err: err }), true); return; }
         loadQueue();
       });
   };
@@ -2596,8 +2924,8 @@ $('bQueueReload').onclick = loadQueue;
 $('bQueueClear').onclick = function () {
   if (!activeQueueId) { return; }
   send('player_queues/clear', { queue_id: activeQueueId }, function (err) {
-    if (err) { toast('Leeren fehlgeschlagen: ' + err, true); return; }
-    toast('Warteschlange geleert');
+    if (err) { toast(t('toast.clearFailed', { err: err }), true); return; }
+    toast(t('toast.queueCleared'));
     setTimeout(loadQueue, 500);
   });
 };
@@ -2633,7 +2961,9 @@ document.addEventListener('click', function (e) {
    START
    ================================================================== */
 buildFilters();
+buildLibFilters();
 setLink(false);
+applyLanguage();
 probeClock();
 connect();
 setInterval(tick, 500);
