@@ -96,6 +96,7 @@ Fehlt `ma-env.js` oder einzelne Werte, greifen Fallback-Defaults im Hauptscript.
 - `player_queues/shuffle`, `player_queues/repeat` – Shuffle/Repeat steuern.
 - `player_queues/clear`, `player_queues/delete_item` – Queue leeren / Eintrag entfernen.
 - Bei aktivem `shuffle_enabled` oder `radio_mode` zeigt die Queue einen Hinweis-Banner an, dass Titel dynamisch gemischt oder generiert werden.
+- Die Anzeige zeigt nur die letzten `QUEUE_HISTORY_LIMIT` (3) bereits gespielten Titel vor dem aktuellen Titel, nicht die komplette Verlaufs-Historie – betrifft nur das Rendering in `loadQueue()`, die Server-Queue bleibt unverändert.
 
 ### Medien
 
