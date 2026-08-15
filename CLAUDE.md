@@ -12,9 +12,10 @@ Ein selbst gehosteter HTML-Dashboard-Controller für [Music Assistant](https://w
 - **Player-Auswahl** als stationsartige Leiste oben (alle oder eine konfigurierbare Whitelist). Ein Klick auf die bereits aktive Station öffnet ein Gruppierungs-Menü: aktuelle Gruppenmitglieder sind dort entfernbar, weitere gruppierfähige Player können hinzugefügt werden.
 - **Now-Playing-Anzeige** mit Cover, Titel, Interpret, Album, Fortschrittsbalken, Transport, Shuffle/Repeat und Lautstärke. Bei Gruppen- oder Sync-Playern lässt sich ein aufklappbares Menü öffnen, um die Lautstärke jedes einzelnen Gruppenmitglieds zu regeln.
 - **Suche** über Titel, Alben, Interpreten, Playlists, Radio, Podcasts, Hörbücher.
-- **Navigation** innerhalb der Suchergebnisse: Interpret → Alben + Top-Titel, Album → Titel, Playlist → Titel, Podcast → Folgen.
-- **Detail-Tabs mit Lazy Loading** in der Interpretansicht: „Top-Titel“ und „Alben“ werden erst beim Öffnen des Tabs geladen.
-- **Bibliothek-Tab** auf der Startseite: schneller Zugriff auf gespeicherte Playlists, Interpreten, Alben, Titel, Radio, Podcasts und Hörbücher – inklusive Favoriten-Herz-Anzeige. Über einen Toggle-Chip "Nur Favoriten" lassen sich alle oder nur favorisierte Einträge anzeigen.
+- **Navigation** innerhalb der Suchergebnisse: Interpret → Alben + Top-Titel, Album → Titel, Playlist → Titel, Podcast → Folgen. Wird eine Detailansicht aus der Bibliothek oder dem Now-Playing-Bereich heraus geöffnet, bleibt der ursprüngliche Reiter (Bibliothek/Warteschlange) optisch aktiv markiert; „Zurück“ führt beim Verlassen der Detailansicht dorthin zurück.
+- **Detail-Tabs mit Lazy Loading** in der Interpretansicht: „Top-Titel“ (echte Top-/Featured-Titel, `music/artists/top_tracks`), „Titel“ (vollständige Titelliste, `music/artists/artist_tracks`) und „Alben“ werden erst beim Öffnen des Tabs geladen. Bei Interpreten aus der Bibliothek wird dafür automatisch der echte Streaming-Provider aus `provider_mappings` verwendet statt des Pseudo-Providers `library`, da Letzterer serverseitig nur bibliotheksverknüpfte Einträge liefert (siehe Abschnitt „Bibliothekselemente und Provider-Auflösung“).
+- **Bibliothek-Tab** auf der Startseite: schneller Zugriff auf gespeicherte Playlists, Interpreten, Alben, Titel, Radio, Podcasts und Hörbücher – inklusive Favoriten-Herz-Anzeige. Über einen Toggle-Chip "Nur Favoriten" lassen sich alle oder nur favorisierte Einträge anzeigen. Zusätzliche Chips "Name"/"Jahr" sortieren die Liste clientseitig um.
+- **Sortierung**: Bibliothek, Suche sowie die Tabs „Titel“ und „Alben“ der Interpretenansicht bieten Chips zum Umschalten der Sortierung ("Name"/"Jahr" bzw. in der Suche zusätzlich "Relevanz" als Default). Sortiert wird clientseitig über `sortMediaItems()`. Der Tab „Top-Titel“ ist bewusst nicht sortierbar, da seine Reihenfolge die Popularitäts-Rangfolge des Servers ist; ebenso bleiben Track-Nummern/Playlist-Reihenfolgen in anderen Detailansichten unverändert.
 - **Aktionsblatt** pro Medium: Jetzt abspielen, Als Nächstes, Hinten anhängen, Zur Playlist hinzufügen, Favorit setzen/entfernen, Öffnen/Interpret/Album.
 - **Add to Playlist** sowohl aus dem Aktionsblatt als auch vom Now-Playing-Cover aus. Im Sheet werden favorisierte Playlists zuerst angezeigt, danach alle anderen alphabetisch nach Name sortiert.
 - **Automix / Smart Crossfade** ein/aus schalten; bei laufender Wiedergabe wird dazu kurz pausiert und fortgesetzt.
@@ -61,7 +62,7 @@ var CFG = {
   MA: 'http://192.168.1.5:8095',   // MA-Basis-URL, ohne abschließenden /
   TOKEN: '<long-lived-token>',     // MA: Einstellungen > Benutzer > Token
   PLAYERS: [],                     // optionale Whitelist von player_ids
-  DEFAULT_PLAYER: '',              // player_id, die beim Start aktiv sein soll
+  DEFAULT_PLAYER: '',              // player_id, die beim Start aktiv sein soll; leer = automatisch der gerade spielende Player/Gruppe, sonst der erste
   SEARCH_LIMIT: 12,                // Treffer pro Kategorie
   LIST_LIMIT: 200,                 // Titel/Alben je Detailansicht
   IMG_COVER: 512,                  // Cover-Kantenlänge über imageproxy
@@ -100,7 +101,8 @@ Fehlt `ma-env.js` oder einzelne Werte, greifen Fallback-Defaults im Hauptscript.
 
 - `music/search` – globale Suche.
 - `music/item_by_uri` – ein Medium anhand seiner URI auflösen (liefert Bibliothekselement mit `favorite`-Flag).
-- `music/artists/artist_albums`, `music/artists/artist_tracks` – Detailansicht Interpret.
+- `music/artists/artist_albums`, `music/artists/artist_tracks` – Detailansicht Interpret: vollständige Diskografie bzw. vollständige Titelliste.
+- `music/artists/top_tracks` – echte Top-/Featured-Titel eines Interpreten (bei Bibliothekselementen providerübergreifend aggregiert/dedupliziert); nicht zu verwechseln mit `artist_tracks`, das die komplette Titelliste liefert.
 - `music/albums/album_tracks` – Detailansicht Album.
 - `music/playlists/playlist_tracks` – Detailansicht Playlist.
 - `music/podcasts/podcast_episodes` – Detailansicht Podcast.
@@ -142,6 +144,12 @@ MA behandelt Favoriten absichtlich asymmetrisch:
 
 Das Dashboard löst deshalb vor jeder Favoriten-Aktion das Element über `music/item_by_uri` auf. Nur so ist sicher, ob das Element in der Bibliothek liegt und ob `favorite` bereits gesetzt ist.
 
+## Bibliothekselemente und Provider-Auflösung
+
+Elemente aus der Bibliothek (`music/<type>s/library_items`) tragen `provider === 'library'` statt eines echten Streaming-Provider-Domains. `music/artists/artist_albums`/`artist_tracks` liefert bei `provider_instance_id_or_domain: 'library'` serverseitig nur die bereits in der Bibliothek verknüpften Einträge (reine DB-Abfrage), nicht die vollständige Diskografie des Providers.
+
+`resolveProviderRef(it)` löst deshalb bei Bibliothekselementen über `it.provider_mappings` (Pflichtfeld auf jedem MA-Medienobjekt) auf einen echten Provider auf und liefert `{ item_id, provider_instance_id_or_domain }` für den eigentlichen Streaming-Provider. `openArtist()` nutzt das, damit „Top-Titel“/„Alben“ auch bei Navigation über die Bibliothek die vollständige Liste zeigen, statt nur der wenigen bereits bibliotheksverknüpften Einträge.
+
 ## Bilder und Imageproxy
 
 MA liefert zu jedem Medium eine `proxy_id`. Über `/imageproxy/<proxy_id>?size=<n>&fmt=jpeg` skaliert der Server das Bild auf die gewünschte Kantenlänge. Das ist auf alten iPads essenziell, da Original-Cover mehrere Megabyte groß sein können.
@@ -161,6 +169,9 @@ Falls `current_media.image_url` aus einer falsch konfigurierten internen `base_u
 - Der Bibliothek-Tab ruft `music/<type>s/library_items` ohne `favorite`-Filter auf, damit jedes Item das `favorite`-Flag mitbringt und `mediaRow()` das Herz anzeigen kann. Ein Toggle-Chip „Nur Favoriten“ filtert die Liste client-seitig.
 - Gruppen-Member-Lautstärke: Mitglieder werden aus `group_members`/`group_childs` bzw. als Fallback über `synced_to`/`active_group` ermittelt. Jedes Mitglied, das `supported_features` enthält, bekommt einen eigenen Slider unter dem Haupt-Volume-Slider.
 - Gruppierungs-Menü: `resolveGroupMembers(id, filterVolume)` ist die gemeinsame Basis für Gruppenmitglieder – mit `filterVolume=true` liefert `getGroupMembers()` nur lautstärkefähige Mitglieder (für die Lautstärke-Slider), mit `filterVolume=false` liefert `renderGroupMenu()` alle Mitglieder (für Anzeige/Entfernen). Kandidaten zum Hinzufügen werden aus `playerIds` gefiltert nach `set_members` in `supported_features`.
+- Reiter-Herkunft bei Detailnavigation: `enterDetail()` merkt sich in `navOriginTab`, aus welchem Tab (Bibliothek/Warteschlange) eine Detailansicht geöffnet wurde, und übergibt das an `switchTab(name, pillName)` als zweiten Parameter, damit der ursprüngliche Reiter optisch aktiv bleibt, obwohl die Detailansicht technisch immer in `#paneSearch` läuft. `popView()` schaltet beim Leerwerden des Navigations-Stacks zurück auf `navOriginTab`. Neue Navigationseinstiege in Detailansichten sollten `enterDetail()` statt eines direkten `switchTab('search')` verwenden.
+- Sortierung: `sortMediaItems(items, mode)` (`'name'`/`'year'`, bei `'year'` Fallback auf `item.album.year` für Titel ohne eigenes Jahresfeld) ist der gemeinsame Sortier-Helfer für Bibliothek (`libSortMode`), Suche (`searchSortMode`, zusätzlich `'relevance'` als Server-Reihenfolge) und die Tabs „Titel“/„Alben“ der Interpretenansicht (`artistSortMode`, angewendet in `renderActiveSections()`). Die gemeinsame `SORT_MODES`-Konstante (`Name`/`Jahr`) speist sowohl die Bibliothek-Chips als auch die Sortier-Chips in `renderTabs()`. Tabs im View-Objekt tragen dafür ein `sortable`-Flag; „Top-Titel“ ist bewusst `sortable: false`, da seine Reihenfolge die Popularitäts-Rangfolge ist. Nicht in der gemeinsam genutzten `renderSections()` angewendet, da diese auch von Detail-Titellisten mit fixer Reihenfolge (Track-Nummern, Playlist-Reihenfolge) genutzt wird.
+- Default-Player-Auswahl: `pickDefaultPlayer()` (in `bootstrap()` verwendet) übernimmt `CFG.DEFAULT_PLAYER` nur, wenn `isPlayerUsable()` (`available`/`enabled` nicht `false`) zutrifft; sonst wird aus `playerIds` der erste Player mit `state === 'playing'` gewählt (Gruppen werden dabei über ihren Leader erkannt, siehe `synced_to`-Filterung in `rebuildPlayerOrder()`), sonst der erste aus `playerIds`.
 - UI-Anpassungen nur mit ES5-tauglichem CSS und JS vornehmen.
 - Keine externen Bibliotheken einbinden; die Datei soll weiterhin eigenständig lauffähig bleiben.
 

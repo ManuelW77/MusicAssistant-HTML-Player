@@ -835,6 +835,24 @@ function getGroupMembers(id) { return resolveGroupMembers(id, true); }
 /* ==================================================================
    START NACH ANMELDUNG
    ================================================================== */
+function isPlayerUsable(p) {
+  return !!(p && p.available !== false && p.enabled !== false);
+}
+
+/* Ohne (nutzbaren) CFG.DEFAULT_PLAYER wird der Player/die Gruppe vorausgewählt,
+   die gerade spielt (players[].state ist bereits aus players/all bekannt, noch
+   bevor player_queues/all beantwortet ist), sonst der erste aus playerIds. */
+function pickDefaultPlayer() {
+  if (CFG.DEFAULT_PLAYER && isPlayerUsable(players[CFG.DEFAULT_PLAYER])) {
+    return CFG.DEFAULT_PLAYER;
+  }
+  for (var i = 0; i < playerIds.length; i++) {
+    var p = players[playerIds[i]];
+    if (isPlayerUsable(p) && p.state === 'playing') { return playerIds[i]; }
+  }
+  return playerIds[0] || null;
+}
+
 function bootstrap() {
   send('players/all', null, function (err, list) {
     if (err) { toast('Player nicht abrufbar: ' + err, true); return; }
@@ -844,7 +862,7 @@ function bootstrap() {
     }
     rebuildPlayerOrder();
     if (!activeId || !players[activeId]) {
-      activeId = (CFG.DEFAULT_PLAYER && players[CFG.DEFAULT_PLAYER]) ? CFG.DEFAULT_PLAYER : playerIds[0] || null;
+      activeId = pickDefaultPlayer();
     }
     buildStations();
     send('player_queues/all', null, function (err2, qlist) {
@@ -1334,11 +1352,11 @@ function wireNowNav(mi) {
   var art = (mi.artists && mi.artists.length) ? mi.artists[0] : (mi.artist || null);
   if (art && art.item_id) {
     aEl.className = 'sub tap';
-    aEl.onclick = function () { switchTab('search'); openArtist(art); };
+    aEl.onclick = function () { enterDetail(); openArtist(art); };
   }
   if (mi.album && mi.album.item_id) {
     alEl.className = 'sub album tap';
-    alEl.onclick = function () { switchTab('search'); openAlbum(mi.album); };
+    alEl.onclick = function () { enterDetail(); openAlbum(mi.album); };
   }
 }
 
@@ -1372,6 +1390,21 @@ function resolveItem(uri, cb) {
 
 function isLibraryItem(it) {
   return !!(it && (it.provider === 'library' || it.provider === 'database'));
+}
+
+/* Bibliothekselemente tragen provider === 'library'; music/artists/artist_albums
+   und artist_tracks liefern dafür serverseitig nur die bereits in der Bibliothek
+   verknüpften Einträge (reine DB-Abfrage), nicht die volle Provider-Diskografie.
+   provider_mappings enthält die echten Streaming-Provider-Referenzen. */
+function resolveProviderRef(it) {
+  if (it && isLibraryItem(it) && it.provider_mappings && it.provider_mappings.length) {
+    var pm = it.provider_mappings[0];
+    for (var i = 0; i < it.provider_mappings.length; i++) {
+      if (it.provider_mappings[i].available !== false) { pm = it.provider_mappings[i]; break; }
+    }
+    return { item_id: pm.item_id, provider_instance_id_or_domain: pm.provider_instance };
+  }
+  return { item_id: it.item_id, provider_instance_id_or_domain: it.provider };
 }
 
 function toggleFav(it, cb) {
@@ -1775,12 +1808,18 @@ function mediaRow(it, type, opts) {
    Eintrag bestimmt Kopfzeile und Liste; "Zurück" nimmt einen herunter.
    ================================================================== */
 var stack = [];
+var artistSortMode = 'name';
 
 function pushView(v) { stack.push(v); renderStack(); }
 
 function popView() {
   stack.pop();
   renderStack();
+  if (!stack.length && navOriginTab && navOriginTab !== 'search') {
+    var origin = navOriginTab;
+    navOriginTab = null;
+    switchTab(origin);
+  }
 }
 
 function resetStack() { stack = []; renderStack(); }
@@ -1810,6 +1849,19 @@ function renderTabs(top) {
       el.onclick = function () { switchViewTab(top, idx); };
       box.appendChild(el);
     })(i);
+  }
+
+  var activeTabDef = top.tabs[top.activeTab || 0];
+  if (activeTabDef && activeTabDef.sortable) {
+    for (var j = 0; j < SORT_MODES.length; j++) {
+      (function (s) {
+        var el = document.createElement('div');
+        el.className = 'filt' + (s.k === artistSortMode ? ' on' : '');
+        el.appendChild(document.createTextNode(s.l));
+        el.onclick = function () { artistSortMode = s.k; renderStack(); };
+        box.appendChild(el);
+      })(SORT_MODES[j]);
+    }
   }
 }
 
@@ -1851,11 +1903,12 @@ function renderStack() {
 
   /* Tabs mit Lazy Loading: bereits geladene Inhalte aus dem Cache nehmen. */
   var cacheKey = null;
+  var activeTab = null;
   if (top.tabs && top.tabs.length) {
-    var activeTab = top.tabs[top.activeTab || 0];
+    activeTab = top.tabs[top.activeTab || 0];
     cacheKey = activeTab.key || String(top.activeTab || 0);
     if (top.cache && top.cache[cacheKey] !== undefined) {
-      renderSections(top.cache[cacheKey]);
+      renderActiveSections(top.cache[cacheKey], activeTab);
       return;
     }
   }
@@ -1876,8 +1929,15 @@ function renderStack() {
       if (!top.cache) { top.cache = {}; }
       top.cache[cacheKey] = sections;
     }
-    renderSections(sections);
+    renderActiveSections(sections, activeTab);
   });
+}
+
+function renderActiveSections(sections, tabDef) {
+  if (tabDef && tabDef.sortable) {
+    for (var i = 0; i < sections.length; i++) { sortMediaItems(sections[i].items, artistSortMode); }
+  }
+  renderSections(sections);
 }
 
 function paintCrumbHeart(v) {
@@ -1922,7 +1982,7 @@ $('bBack').onclick = popView;
 /* ---------- Detailansichten ---------- */
 function openItem(it, mt) {
   mt = mt || it.media_type;
-  switchTab('search');
+  enterDetail();
   if (mt === 'artist') { openArtist(it); return; }
   if (mt === 'album') { openAlbum(it); return; }
   if (mt === 'playlist') { openPlaylist(it); return; }
@@ -1931,7 +1991,7 @@ function openItem(it, mt) {
 }
 
 function openArtist(a) {
-  var args = { item_id: a.item_id, provider_instance_id_or_domain: a.provider };
+  var args = resolveProviderRef(a);
   var v = {
     title: a.name || 'Interpret',
     sub: 'Interpret',
@@ -1941,10 +2001,11 @@ function openArtist(a) {
     cache: {},
     tabs: [
       {
-        key: 'tracks',
+        key: 'toptracks',
         label: 'Top-Titel',
+        sortable: false,
         load: function (cb) {
-          send('music/artists/artist_tracks', args, function (err, tracks) {
+          send('music/artists/top_tracks', args, function (err, tracks) {
             if (err) { cb(err, null); return; }
             cb(null, [{
               label: 'Top-Titel', type: 'track', items: tracks || [],
@@ -1954,8 +2015,23 @@ function openArtist(a) {
         }
       },
       {
+        key: 'tracks',
+        label: 'Titel',
+        sortable: true,
+        load: function (cb) {
+          send('music/artists/artist_tracks', args, function (err, tracks) {
+            if (err) { cb(err, null); return; }
+            cb(null, [{
+              label: 'Titel', type: 'track', items: tracks || [],
+              opts: function (x, i) { return { index: i + 1, sub: albumOf(x) }; }
+            }]);
+          });
+        }
+      },
+      {
         key: 'albums',
         label: 'Alben',
+        sortable: true,
         load: function (cb) {
           send('music/artists/artist_albums', args, function (err, albums) {
             if (err) { cb(err, null); return; }
@@ -2046,6 +2122,22 @@ function openPodcast(pc) {
 function albumOf(t) { return (t.album && t.album.name) || ''; }
 function yearOf(a) { return a.year ? String(a.year) : ''; }
 
+function sortMediaItems(items, mode) {
+  if (mode === 'name') {
+    items.sort(function (a, b) {
+      var an = (a.name || '').toLowerCase(), bn = (b.name || '').toLowerCase();
+      return an < bn ? -1 : (an > bn ? 1 : 0);
+    });
+  } else if (mode === 'year') {
+    items.sort(function (a, b) {
+      var ay = a.year || (a.album && a.album.year) || 0;
+      var by = b.year || (b.album && b.album.year) || 0;
+      return by - ay;
+    });
+  }
+  return items;
+}
+
 /* ==================================================================
    SUCHE
    ================================================================== */
@@ -2068,6 +2160,12 @@ var GROUPS = [
 ];
 var searchType = 'all';
 var lastResults = null;
+var SEARCH_SORTS = [
+  { k: 'relevance', l: 'Relevanz' },
+  { k: 'name',      l: 'Name' },
+  { k: 'year',      l: 'Jahr' }
+];
+var searchSortMode = 'relevance';
 
 function buildFilters() {
   var box = $('filters');
@@ -2084,6 +2182,19 @@ function buildFilters() {
       };
       box.appendChild(el);
     })(FILTERS[i]);
+  }
+  for (var j = 0; j < SEARCH_SORTS.length; j++) {
+    (function (s) {
+      var el = document.createElement('div');
+      el.className = 'filt' + (s.k === searchSortMode ? ' on' : '');
+      el.appendChild(document.createTextNode(s.l));
+      el.onclick = function () {
+        searchSortMode = s.k;
+        buildFilters();
+        if (!stack.length) { renderResults(lastResults); }
+      };
+      box.appendChild(el);
+    })(SEARCH_SORTS[j]);
   }
 }
 
@@ -2117,7 +2228,9 @@ function renderResults(res) {
   var sections = [];
   for (var g = 0; g < GROUPS.length; g++) {
     var grp = GROUPS[g];
-    sections.push({ label: grp.label, type: grp.type, items: res[grp.key] || [] });
+    var secItems = (res[grp.key] || []).slice();
+    if (searchSortMode !== 'relevance') { sortMediaItems(secItems, searchSortMode); }
+    sections.push({ label: grp.label, type: grp.type, items: secItems });
   }
   renderSections(sections);
   var any = false;
@@ -2246,6 +2359,11 @@ var LIB_TYPES = [
 ];
 var currentLibType = 'playlist';
 var libFavOnly = false;
+var SORT_MODES = [
+  { k: 'name', l: 'Name' },
+  { k: 'year', l: 'Jahr' }
+];
+var libSortMode = 'name';
 
 function buildLibFilters() {
   var box = $('libFilters');
@@ -2277,6 +2395,20 @@ function buildLibFilters() {
       box.appendChild(el);
     })(LIB_TYPES[i]);
   }
+
+  for (var j = 0; j < SORT_MODES.length; j++) {
+    (function (s) {
+      var el = document.createElement('div');
+      el.className = 'filt' + (s.k === libSortMode ? ' on' : '');
+      el.appendChild(document.createTextNode(s.l));
+      el.onclick = function () {
+        libSortMode = s.k;
+        buildLibFilters();
+        loadLibrary(currentLibType);
+      };
+      box.appendChild(el);
+    })(SORT_MODES[j]);
+  }
 }
 
 function loadLibrary(typeKey) {
@@ -2304,6 +2436,7 @@ function loadLibrary(typeKey) {
       for (var f = 0; f < items.length; f++) { if (items[f].favorite) { filtered.push(items[f]); } }
       items = filtered;
     }
+    sortMediaItems(items, libSortMode);
     if (!items || !items.length) {
       box.innerHTML = '<div class="hint">' + (libFavOnly ? 'Keine Favoriten vorhanden.' : 'Keine Einträge vorhanden.') + '</div>';
       return;
@@ -2318,6 +2451,11 @@ function loadLibrary(typeKey) {
    WARTESCHLANGE
    ================================================================== */
 var currentTab = 'queue';
+/* Merkt sich, aus welchem Tab eine Detailansicht (Interpret/Album/...) geöffnet
+   wurde, damit switchTab() den ursprünglichen Reiter optisch aktiv halten und
+   popView() beim vollständigen Verlassen der Detailansicht dorthin zurückkehren
+   kann - die Detailansicht selbst lebt technisch immer in #paneSearch. */
+var navOriginTab = null;
 
 var TABS = {
   search:  { pane: 'paneSearch',  init: null },
@@ -2325,11 +2463,12 @@ var TABS = {
   library: { pane: 'paneLibrary', init: function () { buildLibFilters(); loadLibrary(currentLibType); } }
 };
 
-function switchTab(name) {
+function switchTab(name, pillName) {
   currentTab = name;
+  var active = pillName || name;
   var tabs = document.getElementsByClassName('tab');
   for (var i = 0; i < tabs.length; i++) {
-    tabs[i].className = 'tab' + (tabs[i].getAttribute('data-tab') === name ? ' on' : '');
+    tabs[i].className = 'tab' + (tabs[i].getAttribute('data-tab') === active ? ' on' : '');
   }
   for (var k in TABS) {
     if (!TABS.hasOwnProperty(k)) { continue; }
@@ -2340,10 +2479,15 @@ function switchTab(name) {
   if (TABS[name] && TABS[name].init) { TABS[name].init(); }
 }
 
+function enterDetail() {
+  if (currentTab !== 'search') { navOriginTab = currentTab; }
+  switchTab('search', navOriginTab || 'search');
+}
+
 (function wireTabs() {
   var tabs = document.getElementsByClassName('tab');
   for (var i = 0; i < tabs.length; i++) {
-    (function (t) { t.onclick = function () { switchTab(t.getAttribute('data-tab')); }; })(tabs[i]);
+    (function (t) { t.onclick = function () { navOriginTab = null; switchTab(t.getAttribute('data-tab')); }; })(tabs[i]);
   }
 })();
 

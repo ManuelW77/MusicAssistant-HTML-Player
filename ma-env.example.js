@@ -13,7 +13,8 @@ var CFG = {
      Leer lassen = alle verfügbaren Player, alphabetisch. */
   PLAYERS: [],
 
-  /* Player, der beim Start ausgewählt sein soll (player_id). Leer = erster. */
+  /* Player, der beim Start ausgewählt sein soll (player_id).
+     Leer = automatisch der Player/die Gruppe, die gerade spielt, sonst der erste. */
   DEFAULT_PLAYER: '',
 
   SEARCH_LIMIT: 12,      /* Treffer je Kategorie */
