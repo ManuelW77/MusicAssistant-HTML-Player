@@ -2,6 +2,8 @@
 
 A self-hosted, single-file HTML dashboard for [Music Assistant](https://www.music-assistant.io/) (MA). It runs directly in the browser — including old iPads on iOS 9 / Safari 9 — and talks to the MA WebSocket API directly, with no server, build step, or external dependencies required.
 
+![Screenshot of the MA HTML Player dashboard showing the now-playing view and queue](Screenshot.png)
+
 ## Features
 
 - **Direct MA control** over WebSocket (`/ws`) with long-lived token authentication.
