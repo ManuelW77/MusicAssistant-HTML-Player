@@ -1,6 +1,6 @@
 # MA HTML Player
 
-A self-hosted, single-file HTML dashboard for [Music Assistant](https://www.music-assistant.io/) (MA). It runs directly in the browser — including old iPads on iOS 9 / Safari 9 — and talks to the MA WebSocket API directly, with no server, build step, or external dependencies required.
+A self-hosted, single-file HTML dashboard for [Music Assistant](https://www.music-assistant.io/) (MA). It runs directly in the browser — including old iPads on iOS 9 / Safari 9 — and talks to the MA WebSocket API directly, with no server, build step, or external dependencies required. If you already run Home Assistant, you can host it there too — its built-in `www/` folder is all you need, see [Setup](#setup).
 
 ![Screenshot of the MA HTML Player dashboard showing the now-playing view and queue](Screenshot.png)
 
@@ -41,9 +41,19 @@ A self-hosted, single-file HTML dashboard for [Music Assistant](https://www.musi
 
    `ma-env.js` is excluded via `.gitignore` since it holds credentials — never commit it.
 
-2. Serve `ma-dashboard.html`, `ma-env.js`, and `AppIcon.png` from any static web server (or let Music Assistant itself serve them), or open `ma-dashboard.html` directly via `file://` on the device. `AppIcon.png` is used as both the browser favicon and the iOS "Add to Home Screen" icon — keep it next to `ma-dashboard.html`.
+2. Serve `ma-dashboard.html`, `ma-env.js`, and `AppIcon.png` from a web server. You most likely already have one running:
 
-   If you run Home Assistant, its built-in `www/` folder is an easy way to do this without a separate web server: drop all three files into `<config>/www/` (e.g. via the File editor or Studio Code Server add-on), and they become reachable at `http://<ha-ip>:8123/local/ma-dashboard.html`, `.../ma-env.js`, and `.../AppIcon.png` — Home Assistant serves anything under `www/` at the `/local/` path automatically, no extra configuration needed.
+   **Already run Home Assistant? Use it — no separate web server needed.** Its built-in `www/` folder serves static files automatically. Drop all three files into `<config>/www/` (e.g. via the File editor or Studio Code Server add-on), and they're immediately reachable at:
+
+   ```
+   http://<ha-ip>:8123/local/ma-dashboard.html
+   http://<ha-ip>:8123/local/ma-env.js
+   http://<ha-ip>:8123/local/AppIcon.png
+   ```
+
+   That's it — no Nginx, no Apache, no Docker container to maintain. Home Assistant serves anything under `www/` at the `/local/` path with zero extra configuration. This is the recommended way to run this project.
+
+   Don't run Home Assistant? Any static web server works just as well, or open `ma-dashboard.html` directly via `file://` on the device. `AppIcon.png` is used as both the browser favicon and the iOS "Add to Home Screen" icon — keep it next to `ma-dashboard.html` either way.
 
 3. Open the page. It connects to `CFG.MA`'s WebSocket endpoint, authenticates with `CFG.TOKEN`, and loads your players and queues.
 
