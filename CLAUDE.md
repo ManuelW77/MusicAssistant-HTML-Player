@@ -21,6 +21,7 @@ Ein selbst gehosteter HTML-Dashboard-Controller für [Music Assistant](https://w
 - **Automix / Smart Crossfade** ein/aus schalten; bei laufender Wiedergabe wird dazu kurz pausiert und fortgesetzt.
 - **Warteschlange** anzeigen, direkten Titel anwählen, Einzelpositionen löschen, Queue leeren.
 - **Favoriten-Herz** sowohl im Now-Playing-Bereich als auch in jeder Detailansicht.
+- **Dark/Light Mode**: folgt standardmäßig der Systemeinstellung (`prefers-color-scheme`), umschaltbar über einen Button in der Kopfzeile; die manuelle Wahl wird in `localStorage` gemerkt und übersteuert das System dauerhaft (siehe „Dark/Light Mode“).
 
 ## Wichtige Dateien
 
@@ -46,7 +47,7 @@ Lange Listen (z. B. `players/all`, `player_queues/items`, Suchergebnisse) könne
 
 ### ES5-/iPad-Kompatibilität
 
-- Keine CSS-Variablen, kein CSS-Grid, keine `@supports`.
+- Kein CSS-Grid, keine `@supports`. CSS Custom Properties (Variablen) sind die eine bewusste Ausnahme – siehe „Dark/Light Mode“ – weil Safari sie ab 9.1 (iOS Safari 9.3) unterstützt, was ohnehin die Mindestanforderung des Projekts ist (siehe „Troubleshooting“).
 - `display: -webkit-flex` und `display: flex` mit Vendor-Prefixes.
 - Keine Arrow-Funktionen, kein `fetch`, kein `const`/`let`, kein `Promise`, kein `class`, kein `Object.assign`.
 - `XMLHttpRequest` nur für den initialen `/info`-Request (zum Auslesen des `Date`-Headers für die Uhr-Korrektur).
@@ -145,6 +146,22 @@ Ein harter `innerHTML`-Austausch bei jedem Titelwechsel wirkt unruhig (Cover bli
 - **Queue** (`loadQueue()` → `tryQueueSlide()`): Bei jedem Refresh wird geprüft, ob sich seit dem letzten Rendern nur das sichtbare Fenster verschoben hat (`lastQueueIds`/`lastQueueStartIdx`) – d. h. Reihenfolge und Anzahl der Queue-Items sind identisch, nur der aktuelle Titel ist vorgerückt (Normalfall beim Weiterspielen). In diesem Fall wird nicht neu aufgebaut: die `.now`-Markierung wandert zur passenden Zeile, und die oben aus dem Fenster fallenden Zeilen werden per Höhen-/Opacity-Transition weggeslided (`slideRowAway()`, Klasse `.row.q-leave`), statt hart entfernt zu werden. Bei echten Änderungen (Shuffle, Hinzufügen/Löschen, Playerwechsel – `lastQueueIds` passt nicht mehr) greift weiterhin der volle Rebuild über `renderQueueRows()`. Der „Wird geladen …“-Hinweis erscheint nur noch, wenn die Liste aktuell leer ist (`box.getElementsByClassName('row').length === 0`), nicht mehr bei jedem stillen Hintergrund-Refresh.
 - Beide Mechanismen nutzen die generischen Klassen-Helfer `hasClass()`/`addClass()`/`removeClass()` (String-basiert, kein `classList`, konsistent mit dem übrigen ES5-Stil der Datei).
 
+## Dark/Light Mode
+
+Alle Farben im `<style>`-Block sind als CSS Custom Properties auf `:root` definiert (`--bg`, `--bg-elevated`, `--bg-elevated-2`, `--surface`, `--surface-active`, `--border`, `--text`, `--text-dim`, `--text-secondary`, `--text-muted`, `--text-faint`, `--accent`, `--danger`, `--fav`, `--fav-border`; theme-unabhängig konstant: `--on-accent`, `--on-danger`, `--success`). Kein einzelner Farbwert im CSS oder in Inline-Styles darf mehr als Hex-Literal auftauchen – neue Regeln immer über `var(--...)` anlegen, sonst bricht das Theme an der Stelle.
+
+Drei Ebenen bestimmen den aktiven Wertesatz, in aufsteigender Priorität:
+
+1. `:root` liefert die Dark-Werte als Basis (kein Attribut nötig).
+2. `@media (prefers-color-scheme: light) { :root:not([data-theme]) { … } }` überschreibt auf Light, wenn das System hell eingestellt ist und keine explizite Wahl vorliegt.
+3. `:root[data-theme="light"] { … }` überschreibt explizit, unabhängig vom System, sobald `<html>` das Attribut `data-theme="light"` trägt (für Dark ist kein eigener `[data-theme="dark"]`-Block nötig, da das schon die Basis von `:root` ist).
+
+Die JS-Seite (`THEME_STORAGE_KEY = 'ma-dashboard-theme'`, ab `detectTheme()`) liest eine gespeicherte Wahl aus `localStorage`, setzt/entfernt das `data-theme`-Attribut auf `document.documentElement` und pflegt Icon (`#themeSwitch`, Mond/Sonne je nach `effectiveTheme()`) sowie `<meta id="themeColorMeta" name="theme-color">` nach. Ein Klick auf `#themeSwitch` (`toggleTheme()`) setzt immer eine explizite Wahl, die das System dauerhaft übersteuert – es gibt bewusst keinen UI-Weg zurück zu „automatisch“, nur eine neue manuelle Wahl. Ein `matchMedia`-Listener hält Icon/Meta aktuell, falls sich die Systemeinstellung ändert, während noch keine explizite Wahl gespeichert ist.
+
+Ein kleines Inline-`<script>` direkt im `<head>` (vor dem Cache-Buster-Script für `ma-env.js`) wendet eine gespeicherte Wahl schon vor dem ersten Paint an, damit beim Laden nicht kurz das falsche Theme aufblitzt.
+
+Die Akzentfarbe `--accent` selbst ist zwischen den Themes bewusst *nicht* konstant (Dark `#f0a32e`, Light `#c97f17`): Sie wird im UI sowohl als Hintergrundfläche (mit `--on-accent`-Text) als auch direkt als Textfarbe verwendet; auf hellem Grund bräuchte reines `#f0a32e` als Text zu wenig Kontrast, daher ein etwas dunkleres Amber im Light-Theme.
+
 ## Favoriten-Asymmetrie
 
 MA behandelt Favoriten absichtlich asymmetrisch:
@@ -202,3 +219,4 @@ Dagegen gibt es `checkForUpdate()`: Beim Start, bei Rückkehr aus dem Hintergrun
 - **Balken läuft nicht mit** – siehe Abschnitt „Fortschrittsbalken und der Beta-Bug“; ist kein Client-Bug, sondern erwartetes Server-Verhalten.
 - **Bilder laden nicht** – `CFG.MA` muss korrekt sein; bei Reverse-Proxy muss `/imageproxy` erreichbar sein.
 - **Homescreen-App zeigt alte Version** – prüfen, ob `APP_VERSION` beim letzten Deployment tatsächlich erhöht wurde (siehe „Homescreen-Webclip und Update-Erkennung“); ohne das erkennt `checkForUpdate()` keine neue Version.
+- **Theme wechselt nicht mit der Systemeinstellung** – meist liegt bereits eine explizite manuelle Wahl in `localStorage` (`ma-dashboard-theme`), die das System dauerhaft übersteuert (siehe „Dark/Light Mode“); Eintrag löschen, um wieder auf automatisch umzuschalten.
