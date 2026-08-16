@@ -18,6 +18,7 @@ A self-hosted, single-file HTML dashboard for [Music Assistant](https://www.musi
 - **Queue view**: jump to a track, remove individual items, clear the queue. Only the last 3 already-played tracks are shown before the current one, to keep the view from growing indefinitely over a listening session — the actual server-side queue is untouched.
 - **Favorite heart** in both the now-playing area and every detail view.
 - **Dark/light mode**: follows the system setting by default, with a manual toggle in the header; your choice is remembered and overrides the system from then on.
+- **Accent color**: pick from a small preset palette via the color swatch in the header (default stays the amber/yellow); your choice is remembered.
 
 ## Setup
 
@@ -38,9 +39,9 @@ A self-hosted, single-file HTML dashboard for [Music Assistant](https://www.musi
 
    `ma-env.js` is excluded via `.gitignore` since it holds credentials — never commit it.
 
-2. Serve `ma-dashboard.html` and `ma-env.js` from any static web server (or let Music Assistant itself serve them), or open `ma-dashboard.html` directly via `file://` on the device.
+2. Serve `ma-dashboard.html`, `ma-env.js`, and `AppIcon.png` from any static web server (or let Music Assistant itself serve them), or open `ma-dashboard.html` directly via `file://` on the device. `AppIcon.png` is used as both the browser favicon and the iOS "Add to Home Screen" icon — keep it next to `ma-dashboard.html`.
 
-   If you run Home Assistant, its built-in `www/` folder is an easy way to do this without a separate web server: drop both files into `<config>/www/` (e.g. via the File editor or Studio Code Server add-on), and they become reachable at `http://<ha-ip>:8123/local/ma-dashboard.html` and `http://<ha-ip>:8123/local/ma-env.js` — Home Assistant serves anything under `www/` at the `/local/` path automatically, no extra configuration needed.
+   If you run Home Assistant, its built-in `www/` folder is an easy way to do this without a separate web server: drop all three files into `<config>/www/` (e.g. via the File editor or Studio Code Server add-on), and they become reachable at `http://<ha-ip>:8123/local/ma-dashboard.html`, `.../ma-env.js`, and `.../AppIcon.png` — Home Assistant serves anything under `www/` at the `/local/` path automatically, no extra configuration needed.
 
 3. Open the page. It connects to `CFG.MA`'s WebSocket endpoint, authenticates with `CFG.TOKEN`, and loads your players and queues.
 

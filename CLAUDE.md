@@ -22,10 +22,12 @@ Ein selbst gehosteter HTML-Dashboard-Controller für [Music Assistant](https://w
 - **Warteschlange** anzeigen, direkten Titel anwählen, Einzelpositionen löschen, Queue leeren.
 - **Favoriten-Herz** sowohl im Now-Playing-Bereich als auch in jeder Detailansicht.
 - **Dark/Light Mode**: folgt standardmäßig der Systemeinstellung (`prefers-color-scheme`), umschaltbar über einen Button in der Kopfzeile; die manuelle Wahl wird in `localStorage` gemerkt und übersteuert das System dauerhaft (siehe „Dark/Light Mode“).
+- **Akzentfarbe**: über einen Farbkreis in der Kopfzeile aus einer festen Palette wählbar (Standard bleibt Gelb/Amber), Wahl wird in `localStorage` gemerkt (siehe „Akzentfarbe“).
 
 ## Wichtige Dateien
 
 - `ma-dashboard.html` – komplette Single-Page-App (HTML, CSS, JS). Keine Build-Schritt, keine externen Abhängigkeiten.
+- `AppIcon.png` – App-Icon für Homescreen-Webclip (`apple-touch-icon`) und Browser-Favicon (`icon`), referenziert per relativem Pfad im `<head>`; muss beim Deployment neben `ma-dashboard.html` liegen (Groß-/Kleinschreibung beachten, falls der Zielserver case-sensitiv ist).
 - `CLAUDE.md` – diese Datei.
 
 ## Architektur
@@ -161,6 +163,16 @@ Die JS-Seite (`THEME_STORAGE_KEY = 'ma-dashboard-theme'`, ab `detectTheme()`) li
 Ein kleines Inline-`<script>` direkt im `<head>` (vor dem Cache-Buster-Script für `ma-env.js`) wendet eine gespeicherte Wahl schon vor dem ersten Paint an, damit beim Laden nicht kurz das falsche Theme aufblitzt.
 
 Die Akzentfarbe `--accent` selbst ist zwischen den Themes bewusst *nicht* konstant (Dark `#f0a32e`, Light `#c97f17`): Sie wird im UI sowohl als Hintergrundfläche (mit `--on-accent`-Text) als auch direkt als Textfarbe verwendet; auf hellem Grund bräuchte reines `#f0a32e` als Text zu wenig Kontrast, daher ein etwas dunkleres Amber im Light-Theme.
+
+## Akzentfarbe
+
+Der Nutzer kann die Akzentfarbe (Standard: Gelb/Amber `#f0a32e`) über einen Farbkreis in der Kopfzeile (`#accentSwitch`) aus einer festen Palette (`ACCENT_PRESETS`, definiert im frühen Inline-`<script>` im `<head>`) wählen. Bewusst keine freie Farbwahl (kein `<input type="color">`) – das wird von Safari 9 nicht unterstützt, eine feste Palette aus antippbaren Swatches ist auf jedem iOS-Stand zuverlässig nutzbar.
+
+- `ACCENT_STORAGE_KEY = 'ma-dashboard-accent'` in `localStorage`; `ACCENT_PRESETS[0]` ist immer der Standardwert `#f0a32e`.
+- Anders als beim Theme wird die Akzentfarbe **nicht** direkt per `document.documentElement.style.setProperty(...)` gesetzt – das würde als Inline-Style auf `<html>` sowohl die Dark- als auch die Light-Variante gleichzeitig überschreiben und die Drei-Ebenen-Kaskade aus „Dark/Light Mode“ zerstören. Stattdessen injiziert `applyAccentOverride()` bei einer echten Nutzerauswahl ein `<style id="accentOverrideStyle">`-Element in den `<head>`, das exakt dieselbe dreistufige `:root` / `@media (prefers-color-scheme: light)` / `:root[data-theme="light"]`-Struktur für `--accent` reproduziert – nur eben mit der gewählten Farbe statt der Standardwerte. Bei Rückkehr zum Standard-Preset wird der Style-Inhalt einfach geleert, die fest im Haupt-CSS hinterlegten Standardwerte greifen wieder unverändert.
+- `deriveLightAccent(hex)` (RGB→HSL→RGB, alle Helfer ebenfalls im frühen `<head>`-Script) berechnet die Light-Theme-Variante automatisch, indem die Lightness auf 78 % skaliert wird – dieselbe Kontrastlogik, die auch dem handverlesenen Standard-Farbpaar (`#f0a32e`/`#c97f17`) zugrunde liegt. Reine Presets, keine Nutzereingabe, daher ohne weitere Validierung sicher.
+- `applyAccentOverride()` wird sowohl im frühen `<head>`-Script (FOUC-Vermeidung, gleiches Prinzip wie beim Theme) als auch von `setAccent()` im Hauptskript aufgerufen; beide Stellen teilen sich dieselbe globale Funktion statt Farb-Mathematik zu duplizieren.
+- Das Popover-Menü (`#accentMenu`, Swatches in `#accentSwatches`, gerendert von `renderAccentSwatches()`) folgt demselben Öffnen/Schließen-Muster wie `#stationMenu`/`#groupMenu` (siehe `document.addEventListener('click', …)` weiter unten in der Datei) – alle drei Menüs schließen sich gegenseitig beim Öffnen eines anderen.
 
 ## Favoriten-Asymmetrie
 

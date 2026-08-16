@@ -9,6 +9,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<link rel="apple-touch-icon" href="AppIcon.png">
+<link rel="icon" type="image/png" href="AppIcon.png">
 <title>Musik</title>
 <style>
 /* ------------------------------------------------------------------
@@ -178,6 +180,24 @@ html, body {
   -webkit-user-select: none; user-select: none; padding: 5px 4px;
 }
 .theme-switch:active { color: var(--accent); }
+
+/* Akzentfarben-Umschalter */
+.accent-switch {
+  width: 20px; height: 20px; border-radius: 50%; margin-left: 10px;
+  border: 1px solid var(--border); cursor: pointer; -webkit-flex-shrink: 0; flex-shrink: 0;
+  -webkit-user-select: none; user-select: none;
+}
+.accent-menu {
+  position: absolute; top: 68px; right: 16px; z-index: 25;
+  background: var(--bg-elevated-2); border-bottom: 1px solid var(--border);
+  padding: 14px 16px; display: none;
+}
+.accent-menu .swatches { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; width: 176px; }
+.accent-menu .swatch {
+  width: 34px; height: 34px; border-radius: 50%; margin: 4px;
+  border: 2px solid transparent; cursor: pointer; -webkit-flex-shrink: 0; flex-shrink: 0;
+}
+.accent-menu .swatch.on { border-color: var(--text); }
 
 /* Verbindungsampel ganz rechts in der Kopfzeile */
 .link { width: 9px; height: 9px; border-radius: 5px; background: var(--danger); margin-left: 14px; -webkit-flex-shrink: 0; flex-shrink: 0; }
@@ -422,6 +442,86 @@ html, body {
       if (t === 'light' || t === 'dark') { document.documentElement.setAttribute('data-theme', t); }
     } catch (e) { /* Privacy-Modus o.ae. - ignorieren */ }
   })();
+
+  /* Frei waehlbare Akzentfarbe (ersetzt den Standard-Gelbton #f0a32e). Wird
+     hier bewusst schon vor dem ersten Paint angewendet (gleicher Grund wie
+     beim Theme oben) UND als globale Funktion definiert, damit der
+     Haupt-Script-Block weiter unten sie bei einer Nutzerauswahl erneut
+     aufrufen kann, ohne die Farb-Mathematik zu duplizieren. Die vorgegebene
+     Standardfarbe (ACCENT_PRESETS[0]) laeuft NICHT durch diese Funktion,
+     sondern bleibt der fest im Haupt-CSS hinterlegte, handverlesene Wert -
+     nur echte Nutzerauswahlen bekommen ein per Style-Tag injiziertes
+     Custom-Property-Override. */
+  var ACCENT_STORAGE_KEY = 'ma-dashboard-accent';
+  var ACCENT_PRESETS = ['#f0a32e', '#e0483f', '#e0568f', '#9b6bd6', '#4d8fe0', '#3fb8b0', '#5cad5c'];
+
+  function hexToRgb(hex) {
+    var h = hex.replace('#', '');
+    return { r: parseInt(h.substr(0, 2), 16), g: parseInt(h.substr(2, 2), 16), b: parseInt(h.substr(4, 2), 16) };
+  }
+  function rgbToHex(r, g, b) {
+    function h(n) { var s = Math.max(0, Math.min(255, Math.round(n))).toString(16); return s.length === 1 ? '0' + s : s; }
+    return '#' + h(r) + h(g) + h(b);
+  }
+  function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b);
+    var h = 0, s = 0, l = (max + min) / 2, d = max - min;
+    if (d !== 0) {
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r) { h = (g - b) / d + (g < b ? 6 : 0); }
+      else if (max === g) { h = (b - r) / d + 2; }
+      else { h = (r - g) / d + 4; }
+      h /= 6;
+    }
+    return { h: h, s: s, l: l };
+  }
+  function hslToRgb(h, s, l) {
+    function hue2rgb(p, q, t) {
+      if (t < 0) { t += 1; }
+      if (t > 1) { t -= 1; }
+      if (t < 1 / 6) { return p + (q - p) * 6 * t; }
+      if (t < 1 / 2) { return q; }
+      if (t < 2 / 3) { return p + (q - p) * (2 / 3 - t) * 6; }
+      return p;
+    }
+    if (s === 0) { return { r: l * 255, g: l * 255, b: l * 255 }; }
+    var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    var p = 2 * l - q;
+    return {
+      r: hue2rgb(p, q, h + 1 / 3) * 255,
+      g: hue2rgb(p, q, h) * 255,
+      b: hue2rgb(p, q, h - 1 / 3) * 255
+    };
+  }
+  function deriveLightAccent(hex) {
+    var rgb = hexToRgb(hex);
+    var hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+    hsl.l = hsl.l * 0.78;
+    var out = hslToRgb(hsl.h, hsl.s, hsl.l);
+    return rgbToHex(out.r, out.g, out.b);
+  }
+  function applyAccentOverride() {
+    var custom = null;
+    try { custom = localStorage.getItem(ACCENT_STORAGE_KEY); } catch (e) { custom = null; }
+    var styleEl = document.getElementById('accentOverrideStyle');
+    if (!custom || custom === ACCENT_PRESETS[0]) {
+      if (styleEl) { styleEl.textContent = ''; }
+      return;
+    }
+    var light = deriveLightAccent(custom);
+    var css = ':root{--accent:' + custom + ';}' +
+      '@media (prefers-color-scheme: light){:root:not([data-theme]){--accent:' + light + ';}}' +
+      ':root[data-theme="light"]{--accent:' + light + ';}';
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'accentOverrideStyle';
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = css;
+  }
+  applyAccentOverride();
+
   /* Dynamischer Cache-Buster für ma-env.js */
   document.write('<script src="ma-env.js?v=' + (new Date().getTime()) + '"><\/script>');
 </script>
@@ -439,6 +539,7 @@ html, body {
       <div class="lang-chip" id="langEn">EN</div>
     </div>
     <div class="theme-switch" id="themeSwitch"></div>
+    <div class="accent-switch" id="accentSwitch"></div>
     <div class="link" id="link"></div>
   </div>
 
@@ -452,6 +553,11 @@ html, body {
     <div id="groupMenuActive"></div>
     <div class="menu-head" id="groupMenuOthersHead" data-i18n="top.otherDevices">Weitere Geräte</div>
     <div id="groupMenuOthers"></div>
+  </div>
+
+  <div class="accent-menu" id="accentMenu" style="display:none;">
+    <div class="menu-head" data-i18n="top.accentColor">Akzentfarbe</div>
+    <div class="swatches" id="accentSwatches"></div>
   </div>
 
   <div class="main">
@@ -583,7 +689,7 @@ html, body {
    bekommt so ein iPad oft wochenlang gar kein echtes visibilitychange/
    pageshow mehr - ohne Timer bliebe der Update-Check dann faktisch tot.
    ================================================================== */
-var APP_VERSION = '2026-08-16.2';
+var APP_VERSION = '2026-08-16.4';
 var UPDATE_CHECK_INTERVAL_MS = 10 * 60 * 1000;
 
 /* ==================================================================
@@ -642,6 +748,7 @@ var I18N = {
     "top.allPlayers": "Alle Player",
     "top.group": "Gruppe",
     "top.otherDevices": "Weitere Geräte",
+    "top.accentColor": "Akzentfarbe",
     "now.nothingSelected": "Nichts ausgewählt",
     "now.off": "Aus",
     "now.nothingPlaying": "Nichts läuft",
@@ -761,6 +868,7 @@ var I18N = {
     "top.allPlayers": "All players",
     "top.group": "Group",
     "top.otherDevices": "Other devices",
+    "top.accentColor": "Accent color",
     "now.nothingSelected": "Nothing selected",
     "now.off": "Off",
     "now.nothingPlaying": "Nothing playing",
@@ -998,6 +1106,59 @@ if (window.matchMedia) {
   if (mq.addEventListener) { mq.addEventListener('change', onSchemeChange); }
   else if (mq.addListener) { mq.addListener(onSchemeChange); }
 }
+
+/* ---------- Akzentfarbe ----------
+   ACCENT_PRESETS, ACCENT_STORAGE_KEY, die Farb-Konvertierungshelfer und
+   applyAccentOverride() sind bereits im fruehen Inline-Script im <head>
+   definiert (gleicher FOUC-Grund wie beim Theme) und stehen hier als
+   globale Funktionen zur Verfuegung. */
+var accentMenuOpen = false;
+
+function currentAccent() {
+  try {
+    var saved = localStorage.getItem(ACCENT_STORAGE_KEY);
+    if (saved) { return saved; }
+  } catch (e) { /* Privacy-Modus o.ae. - ignorieren */ }
+  return ACCENT_PRESETS[0];
+}
+
+function updateAccentSwitchUI() {
+  $('accentSwitch').style.background = currentAccent();
+}
+
+function renderAccentSwatches() {
+  var box = $('accentSwatches');
+  box.innerHTML = '';
+  var active = currentAccent();
+  for (var i = 0; i < ACCENT_PRESETS.length; i++) {
+    (function (hex) {
+      var sw = document.createElement('div');
+      sw.className = 'swatch' + (hex === active ? ' on' : '');
+      sw.style.background = hex;
+      sw.onclick = function () { setAccent(hex); };
+      box.appendChild(sw);
+    })(ACCENT_PRESETS[i]);
+  }
+}
+
+function setAccent(hex) {
+  if (hex === ACCENT_PRESETS[0]) {
+    try { localStorage.removeItem(ACCENT_STORAGE_KEY); } catch (e) { /* egal */ }
+  } else {
+    try { localStorage.setItem(ACCENT_STORAGE_KEY, hex); } catch (e) { /* egal */ }
+  }
+  applyAccentOverride();
+  updateAccentSwitchUI();
+  renderAccentSwatches();
+}
+
+updateAccentSwitchUI();
+renderAccentSwatches();
+$('accentSwitch').onclick = function () {
+  accentMenuOpen = !accentMenuOpen;
+  $('accentMenu').style.display = accentMenuOpen ? 'block' : 'none';
+  if (accentMenuOpen) { stationMenuOpen = false; $('stationMenu').style.display = 'none'; $('stationMore').className = 'station-more'; groupMenuOpen = false; $('groupMenu').style.display = 'none'; }
+};
 
 function base() {
   if (CFG.MA) { return CFG.MA.replace(/\/+$/, ''); }
@@ -1536,6 +1697,8 @@ function buildStations() {
           stationMenuOpen = false;
           $('stationMenu').style.display = 'none';
           $('stationMore').className = 'station-more';
+          accentMenuOpen = false;
+          $('accentMenu').style.display = 'none';
           $('groupMenu').style.display = groupMenuOpen ? 'block' : 'none';
           if (groupMenuOpen) { renderGroupMenu(); positionGroupMenu(el); }
         } else {
@@ -3266,14 +3429,19 @@ $('stationMore').onclick = function () {
   stationMenuOpen = !stationMenuOpen;
   $('stationMenu').style.display = stationMenuOpen ? 'block' : 'none';
   $('stationMore').className = 'station-more' + (stationMenuOpen ? ' on' : '');
-  if (stationMenuOpen) { groupMenuOpen = false; $('groupMenu').style.display = 'none'; }
+  if (stationMenuOpen) {
+    groupMenuOpen = false;
+    $('groupMenu').style.display = 'none';
+    accentMenuOpen = false;
+    $('accentMenu').style.display = 'none';
+  }
 };
 
 document.addEventListener('click', function (e) {
-  if (!stationMenuOpen && !groupMenuOpen) { return; }
+  if (!stationMenuOpen && !groupMenuOpen && !accentMenuOpen) { return; }
   var n = e.target;
   while (n && n !== document.body) {
-    if (n.id === 'stationMenu' || n.id === 'stationMore' || n.id === 'groupMenu') { return; }
+    if (n.id === 'stationMenu' || n.id === 'stationMore' || n.id === 'groupMenu' || n.id === 'accentMenu' || n.id === 'accentSwitch') { return; }
     if (n.className && typeof n.className === 'string' && (' ' + n.className + ' ').indexOf(' station ') >= 0) { return; }
     n = n.parentNode;
   }
@@ -3282,6 +3450,8 @@ document.addEventListener('click', function (e) {
   $('stationMore').className = 'station-more';
   groupMenuOpen = false;
   $('groupMenu').style.display = 'none';
+  accentMenuOpen = false;
+  $('accentMenu').style.display = 'none';
 }, false);
 
 /* ==================================================================
