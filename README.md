@@ -17,6 +17,7 @@ A self-hosted, single-file HTML dashboard for [Music Assistant](https://www.musi
 - **Automix / smart crossfade** toggle; if playback is active, it's briefly paused and resumed around the toggle.
 - **Queue view**: jump to a track, remove individual items, clear the queue. Only the last 3 already-played tracks are shown before the current one, to keep the view from growing indefinitely over a listening session — the actual server-side queue is untouched.
 - **Favorite heart** in both the now-playing area and every detail view.
+- **Dark/light mode**: follows the system setting by default, with a manual toggle in the header; your choice is remembered and overrides the system from then on.
 
 ## Setup
 
@@ -39,6 +40,8 @@ A self-hosted, single-file HTML dashboard for [Music Assistant](https://www.musi
 
 2. Serve `ma-dashboard.html` and `ma-env.js` from any static web server (or let Music Assistant itself serve them), or open `ma-dashboard.html` directly via `file://` on the device.
 
+   If you run Home Assistant, its built-in `www/` folder is an easy way to do this without a separate web server: drop both files into `<config>/www/` (e.g. via the File editor or Studio Code Server add-on), and they become reachable at `http://<ha-ip>:8123/local/ma-dashboard.html` and `http://<ha-ip>:8123/local/ma-env.js` — Home Assistant serves anything under `www/` at the `/local/` path automatically, no extra configuration needed.
+
 3. Open the page. It connects to `CFG.MA`'s WebSocket endpoint, authenticates with `CFG.TOKEN`, and loads your players and queues.
 
 No build step, no package manager, no external libraries — it's a single self-contained HTML file.
@@ -51,8 +54,10 @@ MA exposes both a WebSocket endpoint (`/ws`) and a POST route (`/api`) for JSON-
 
 Built to run on iOS 9.3+ / Safari 9, so the code intentionally avoids:
 
-- CSS variables, CSS Grid, `@supports`
+- CSS Grid, `@supports`
 - Arrow functions, `fetch`, `const`/`let`, `Promise`, `class`, `Object.assign`
+
+CSS custom properties (variables) are the one deliberate exception, used for dark/light mode — Safari has supported them since 9.1 (iOS Safari 9.3), which is this project's floor anyway.
 
 `XMLHttpRequest` is only used for the initial `/info` request (to read the `Date` header for clock correction). Fonts are limited to what iOS ships natively (`Avenir Next`, `Futura`, `Helvetica Neue`).
 
