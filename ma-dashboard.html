@@ -576,10 +576,15 @@ html, body {
    WebKit ma-dashboard.html teils hartnäckig über Cache-Control-Header
    und Neustarts hinweg. Bei jedem funktionalen Änderungen an dieser
    Datei APP_VERSION erhöhen - checkForUpdate() vergleicht sie beim
-   Start und bei jeder Rückkehr in den Vordergrund gegen die Version,
-   die aktuell tatsächlich auf dem Server liegt (siehe dort).
+   Start, bei jeder Rückkehr in den Vordergrund UND periodisch alle
+   UPDATE_CHECK_INTERVAL_MS gegen die Version, die aktuell tatsächlich
+   auf dem Server liegt (siehe dort). Das periodische Polling ist der
+   eigentlich verlässliche Pfad: Als dauerhaft sichtbares Kiosk-Display
+   bekommt so ein iPad oft wochenlang gar kein echtes visibilitychange/
+   pageshow mehr - ohne Timer bliebe der Update-Check dann faktisch tot.
    ================================================================== */
-var APP_VERSION = '2026-08-16.1';
+var APP_VERSION = '2026-08-16.2';
+var UPDATE_CHECK_INTERVAL_MS = 10 * 60 * 1000;
 
 /* ==================================================================
    KONFIGURATION
@@ -1044,18 +1049,26 @@ function probeClock() {
 /* ------------------------------------------------------------------
    Update-Check für den iOS-Homescreen-Webclip. WebKit hält den einmal
    "Zum Home-Bildschirm" hinzugefügten Snapshot von ma-dashboard.html
-   hartnäckig fest - auch über die Cache-Control-Meta-Tags im <head> und
-   über App-Neustarts hinweg. Deshalb wird die Datei aktiv per XHR (mit
-   cache-bustendem Query-String) frisch vom Server geholt und die darin
-   enthaltene APP_VERSION mit der gerade laufenden verglichen. Weicht
-   sie ab, wird hart auf eine neue URL navigiert (anderer Query-String),
-   damit WebKit nicht wieder die gecachte Fassung ausliefert.
+   hartnäckig fest - auch über die Cache-Control-Meta-Tags im <head>,
+   über App-Neustarts hinweg, und teils auch über lange Server-seitige
+   Cache-Control-Header hinweg (z. B. wenn die Datei wie bei Home
+   Assistants /local-Static-Route mit langer Lebensdauer ausgeliefert
+   wird). Deshalb wird die Datei aktiv per XHR (mit cache-bustendem
+   Query-String plus expliziten No-Cache-Request-Headern) frisch vom
+   Server geholt und die darin enthaltene APP_VERSION mit der gerade
+   laufenden verglichen. Weicht sie ab, wird hart auf eine neue URL
+   navigiert (anderer Query-String), damit WebKit nicht wieder die
+   gecachte Fassung ausliefert.
 ------------------------------------------------------------------ */
 function checkForUpdate() {
   if (location.protocol === 'file:') { return; }
   var url = location.pathname + '?_v=' + Date.now();
   var x = new XMLHttpRequest();
   try { x.open('GET', url, true); } catch (e) { return; }
+  x.timeout = 10000;
+  x.ontimeout = function () { /* egal, der naechste Intervall-Tick versucht es erneut */ };
+  try { x.setRequestHeader('Cache-Control', 'no-cache'); } catch (eh) { /* egal */ }
+  try { x.setRequestHeader('Pragma', 'no-cache'); } catch (eh2) { /* egal */ }
   x.onreadystatechange = function () {
     if (x.readyState !== 4 || x.status !== 200 || !x.responseText) { return; }
     var m = x.responseText.match(/APP_VERSION\s*=\s*'([^']+)'/);
@@ -3290,6 +3303,12 @@ document.addEventListener('visibilitychange', function () {
   if (!document.hidden) { checkForUpdate(); }
 }, false);
 window.addEventListener('pageshow', function () { checkForUpdate(); }, false);
+
+/* Zusaetzlich periodisch pruefen: Als dauerhaft sichtbares Kiosk-
+   Display feuern visibilitychange/pageshow auf einem wandmontierten
+   iPad oft wochenlang gar nicht mehr - dieser Timer ist der eigentlich
+   verlaessliche Update-Pfad, unabhaengig von WebKit-Lifecycle-Events. */
+setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS);
 
 switchTab('queue');
 
