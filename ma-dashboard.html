@@ -400,6 +400,10 @@ html, body {
 }
 
 /* ---------- Songtexte ---------- */
+/* position:relative macht #lyricsBox zum offsetParent seiner .lyric-line-Kinder;
+   ohne das ist offsetTop seitenrelativ (offsetParent waere <body>), was die
+   Scroll-Zentrierung in updateLyricsHighlight() verfaelscht. */
+#lyricsBox { position: relative; }
 .lyrics-plain { white-space: pre-wrap; color: var(--text-dim); font-size: 17px; line-height: 1.7; padding: 4px; }
 .lyric-line {
   color: var(--text-muted); font-size: 17px; line-height: 1.7; padding: 4px;
@@ -702,7 +706,7 @@ html, body {
    bekommt so ein iPad oft wochenlang gar kein echtes visibilitychange/
    pageshow mehr - ohne Timer bliebe der Update-Check dann faktisch tot.
    ================================================================== */
-var APP_VERSION = '2026-08-18.1';
+var APP_VERSION = '2026-08-18.2';
 var UPDATE_CHECK_INTERVAL_MS = 10 * 60 * 1000;
 
 /* ==================================================================
@@ -1826,6 +1830,9 @@ var npFav = null;          /* aufgelöstes Bibliothekselement oder null */
 var npLyricsLoaded = false;      /* ob für npUri bereits eine Antwort da ist (lädt noch vs. bestätigt leer) */
 var npLyricsPlain = null;        /* metadata.lyrics (Klartext) oder null */
 var npLyricsLrc = null;          /* geparste metadata.lrc_lyrics, [{time, text}, ...] sortiert, oder null */
+var npLyricsSince = 0;           /* Date.now() vom Titelwechsel - Basis fuer die Kulanzfrist unten */
+var npLyricsGraceTimer = null;   /* einmaliger Timer, der nach LYRICS_GRACE_MS von "wird geladen" auf "keine Songtexte" umschaltet */
+var LYRICS_GRACE_MS = 45000;     /* etwas ueber dem dokumentierten ~30s-Throttle fuer MA-Metadaten-Updates */
 var lyricsPrevTab = 'queue';     /* Tab, zu dem beim Schließen der Songtextansicht zurückgeschaltet wird */
 var lyricsActiveLineIdx = -1;    /* Index der aktuell hervorgehobenen LRC-Zeile */
 var lyricsLineEls = null;        /* DOM-Referenzen der gerenderten .lyric-line-Elemente */
@@ -1916,6 +1923,7 @@ function renderNow() {
   if (uri !== npUri) {
     npUri = uri;
     npFav = null;
+    npLyricsSince = Date.now();
     paintNowHeart();
     refreshNowFav();
     refreshNowLyrics();
@@ -2277,6 +2285,7 @@ function refreshNowLyrics() {
   npLyricsPlain = null;
   npLyricsLrc = null;
   lyricsActiveLineIdx = -1;
+  if (npLyricsGraceTimer) { clearTimeout(npLyricsGraceTimer); npLyricsGraceTimer = null; }
   if (currentTab === 'lyrics') { renderLyricsView(); }
   if (!npUri) { return; }
   var want = npUri;
@@ -2286,6 +2295,18 @@ function refreshNowLyrics() {
     var md = (!err && it && it.metadata) || {};
     npLyricsPlain = md.lyrics || null;
     npLyricsLrc = parseLrc(md.lrc_lyrics);
+    /* Server sucht Lyrics im Hintergrund - eine leere erste Antwort heisst nicht
+       "keine Lyrics", sondern moeglicherweise nur "noch nicht fertig gesucht".
+       Erst nach der Kulanzfrist gilt das als endgueltig (siehe renderLyricsView). */
+    if (!npLyricsPlain && !npLyricsLrc) {
+      var remaining = LYRICS_GRACE_MS - (Date.now() - npLyricsSince);
+      if (remaining < 0) { remaining = 0; }
+      npLyricsGraceTimer = setTimeout(function () {
+        npLyricsGraceTimer = null;
+        if (want !== npUri) { return; }
+        if (currentTab === 'lyrics') { renderLyricsView(); }
+      }, remaining);
+    }
     if (currentTab === 'lyrics') { renderLyricsView(); }
   });
 }
@@ -2325,6 +2346,7 @@ function renderLyricsView() {
     box.appendChild(plainEl);
     return;
   }
+  if ((Date.now() - npLyricsSince) < LYRICS_GRACE_MS) { renderHint(box, t('lyrics.loading')); return; }
   renderHint(box, t('lyrics.none'));
 }
 
