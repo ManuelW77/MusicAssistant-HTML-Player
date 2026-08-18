@@ -398,6 +398,14 @@ html, body {
   background: var(--bg-elevated); border: 1px solid var(--border); border-left: 3px solid var(--accent);
   padding: 10px 14px; margin: 4px 0 10px 0; font-size: 13px; color: var(--text-dim); line-height: 1.4;
 }
+
+/* ---------- Songtexte ---------- */
+.lyrics-plain { white-space: pre-wrap; color: var(--text-dim); font-size: 17px; line-height: 1.7; padding: 4px; }
+.lyric-line {
+  color: var(--text-muted); font-size: 17px; line-height: 1.7; padding: 4px;
+  -webkit-transition: color 0.3s ease; transition: color 0.3s ease;
+}
+.lyric-line.now { color: var(--accent); font-weight: bold; }
 .queue-banner strong { color: var(--accent); font-weight: normal; }
 
 /* ---------- Aktionsblatt ---------- */
@@ -568,6 +576,7 @@ html, body {
         <div class="title" id="title" data-i18n="now.nothingSelected">Nichts ausgewählt</div>
         <div class="heart hide" id="npAdd"><span>&#43;</span></div>
         <div class="heart hide" id="npHeart"><span>&#9825;</span></div>
+        <div class="heart hide" id="npLyrics"><span>Aa</span></div>
       </div>
       <div class="sub" id="artist"></div>
       <div class="sub album" id="album"></div>
@@ -640,6 +649,10 @@ html, body {
         <div class="filters" id="libFilters"></div>
         <div class="list" id="libResults"><div class="hint" data-i18n="lib.hint">Medientyp oben wählen.</div></div>
       </div>
+
+      <div id="paneLyrics" style="display:none;-webkit-flex:1;flex:1;min-height:0;-webkit-flex-direction:column;flex-direction:column;">
+        <div class="list" id="lyricsBox"></div>
+      </div>
     </div>
 
   </div>
@@ -689,7 +702,7 @@ html, body {
    bekommt so ein iPad oft wochenlang gar kein echtes visibilitychange/
    pageshow mehr - ohne Timer bliebe der Update-Check dann faktisch tot.
    ================================================================== */
-var APP_VERSION = '2026-08-16.5';
+var APP_VERSION = '2026-08-18.1';
 var UPDATE_CHECK_INTERVAL_MS = 10 * 60 * 1000;
 
 /* ==================================================================
@@ -786,6 +799,9 @@ var I18N = {
     "toast.queueCleared": "Warteschlange geleert",
     "lib.hint": "Medientyp oben wählen.",
     "lib.favOnly": "♥ Nur Favoriten",
+    "lyrics.noTrack": "Kein Titel aktiv.",
+    "lyrics.loading": "Songtexte werden geladen …",
+    "lyrics.none": "Keine Songtexte verfügbar.",
     "lib.noFavorites": "Keine Favoriten vorhanden.",
     "lib.noEntries": "Keine Einträge vorhanden.",
     "media.tracks": "Titel",
@@ -906,6 +922,9 @@ var I18N = {
     "toast.queueCleared": "Queue cleared",
     "lib.hint": "Choose a media type above.",
     "lib.favOnly": "♥ Favorites only",
+    "lyrics.noTrack": "No track playing.",
+    "lyrics.loading": "Loading lyrics …",
+    "lyrics.none": "No lyrics available.",
     "lib.noFavorites": "No favorites yet.",
     "lib.noEntries": "No entries.",
     "media.tracks": "Tracks",
@@ -1778,6 +1797,9 @@ function handleEvent(msg) {
   if (evt === 'media_item_updated' || evt === 'media_item_added' || evt === 'media_item_deleted') {
     /* Favoritenstand kann sich geändert haben - betrifft nur die Anzeige. */
     refreshNowFav();
+    /* Lyrics werden vom Server oft erst verzögert nachgeliefert; nur beim
+       aktuell laufenden Titel neu laden, nicht bei jedem Bibliotheks-Update. */
+    if (msg.object_id && msg.object_id === npUri) { refreshNowLyrics(); }
     return;
   }
 }
@@ -1800,6 +1822,13 @@ function adoptQueue(q) {
 var lastCoverSrc = '';
 var npUri = null;          /* URI des laufenden Titels, für den Favoritenknopf */
 var npFav = null;          /* aufgelöstes Bibliothekselement oder null */
+
+var npLyricsLoaded = false;      /* ob für npUri bereits eine Antwort da ist (lädt noch vs. bestätigt leer) */
+var npLyricsPlain = null;        /* metadata.lyrics (Klartext) oder null */
+var npLyricsLrc = null;          /* geparste metadata.lrc_lyrics, [{time, text}, ...] sortiert, oder null */
+var lyricsPrevTab = 'queue';     /* Tab, zu dem beim Schließen der Songtextansicht zurückgeschaltet wird */
+var lyricsActiveLineIdx = -1;    /* Index der aktuell hervorgehobenen LRC-Zeile */
+var lyricsLineEls = null;        /* DOM-Referenzen der gerenderten .lyric-line-Elemente */
 
 /* Blendet ein neues Cover-Element (img oder Platzhalter-div) über das
    bisherige, statt es hart per innerHTML zu ersetzen. Beide liegen dank
@@ -1889,6 +1918,7 @@ function renderNow() {
     npFav = null;
     paintNowHeart();
     refreshNowFav();
+    refreshNowLyrics();
   }
 
   /* Playlist-Plus-Knopf */
@@ -1899,6 +1929,8 @@ function renderNow() {
   } else {
     addBtn.className = 'heart hide';
   }
+
+  paintLyricsButton();
 
   tick();
 }
@@ -2124,6 +2156,7 @@ function tick() {
   $('dialNeedle').style.left = pct + '%';
   setText($('tPos'), fmt(pos));
   setText($('tDur'), fmt(dur));
+  updateLyricsHighlight(pos);
 }
 
 /* ==================================================================
@@ -2205,6 +2238,136 @@ $('npAdd').onclick = function () {
   if (!npUri) { return; }
   openPlaylistSheet(npUri, $('title').textContent || t('now.currentTrackFallback'));
 };
+
+/* ==================================================================
+   SONGTEXTE
+   ==================================================================
+   metadata.lyrics (Klartext) und metadata.lrc_lyrics (LRC-Format mit
+   Zeitstempeln pro Zeile) kommen wie bei den Favoriten ausschließlich
+   über music/item_by_uri, nie aus dem (ggf. veralteten) Queue-Item -
+   der Server liefert Lyrics oft erst verzögert nach. Gleiches
+   Race-Guard-Muster wie refreshNowFav().
+   ================================================================== */
+function parseLrc(raw) {
+  if (!raw) { return null; }
+  var lines = raw.split(/\r\n|\r|\n/);
+  var tagRe = /\[(\d{1,3}):(\d{2})(?:\.(\d{1,3}))?\]/g;
+  var out = [];
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    var lastEnd = 0, matched = false, m, times = [];
+    tagRe.lastIndex = 0;
+    while ((m = tagRe.exec(line)) !== null) {
+      if (m.index !== lastEnd) { break; } /* Zeit-Tags müssen lückenlos am Zeilenanfang stehen */
+      matched = true;
+      times.push(parseInt(m[1], 10) * 60 + parseFloat(m[2] + (m[3] ? '.' + m[3] : '')));
+      lastEnd = tagRe.lastIndex;
+    }
+    if (!matched) { continue; } /* z.B. LRC-Kopfzeilen wie [ar:...]/[ti:...] */
+    var text = line.slice(lastEnd).replace(/^\s+/, '');
+    for (var j = 0; j < times.length; j++) { out.push({ time: times[j], text: text }); }
+  }
+  if (!out.length) { return null; }
+  out.sort(function (a, b) { return a.time - b.time; });
+  return out;
+}
+
+function refreshNowLyrics() {
+  npLyricsLoaded = false;
+  npLyricsPlain = null;
+  npLyricsLrc = null;
+  lyricsActiveLineIdx = -1;
+  if (currentTab === 'lyrics') { renderLyricsView(); }
+  if (!npUri) { return; }
+  var want = npUri;
+  resolveItem(want, function (err, it) {
+    if (want !== npUri) { return; }     /* Titel hat inzwischen gewechselt */
+    npLyricsLoaded = true;
+    var md = (!err && it && it.metadata) || {};
+    npLyricsPlain = md.lyrics || null;
+    npLyricsLrc = parseLrc(md.lrc_lyrics);
+    if (currentTab === 'lyrics') { renderLyricsView(); }
+  });
+}
+
+function renderHint(box, text) {
+  box.innerHTML = '';
+  var hint = document.createElement('div');
+  hint.className = 'hint';
+  setText(hint, text);
+  box.appendChild(hint);
+}
+
+function renderLyricsView() {
+  var box = $('lyricsBox');
+  lyricsLineEls = null;
+  lyricsActiveLineIdx = -1;
+  if (!npUri) { renderHint(box, t('lyrics.noTrack')); return; }
+  if (!npLyricsLoaded) { renderHint(box, t('lyrics.loading')); return; }
+  if (npLyricsLrc && npLyricsLrc.length) {
+    box.innerHTML = '';
+    lyricsLineEls = [];
+    for (var i = 0; i < npLyricsLrc.length; i++) {
+      var lineEl = document.createElement('div');
+      lineEl.className = 'lyric-line';
+      setText(lineEl, npLyricsLrc[i].text || ' ');
+      box.appendChild(lineEl);
+      lyricsLineEls.push(lineEl);
+    }
+    tick(); /* stößt updateLyricsHighlight() mit der aktuell interpolierten Position an */
+    return;
+  }
+  if (npLyricsPlain) {
+    box.innerHTML = '';
+    var plainEl = document.createElement('div');
+    plainEl.className = 'lyrics-plain';
+    setText(plainEl, npLyricsPlain);
+    box.appendChild(plainEl);
+    return;
+  }
+  renderHint(box, t('lyrics.none'));
+}
+
+function updateLyricsHighlight(pos) {
+  if (currentTab !== 'lyrics' || !npLyricsLrc || !lyricsLineEls) { return; }
+  var idx = -1;
+  for (var i = 0; i < npLyricsLrc.length; i++) {
+    if (npLyricsLrc[i].time <= pos) { idx = i; } else { break; }
+  }
+  if (idx === lyricsActiveLineIdx) { return; }
+  if (lyricsActiveLineIdx >= 0 && lyricsLineEls[lyricsActiveLineIdx]) {
+    removeClass(lyricsLineEls[lyricsActiveLineIdx], 'now');
+  }
+  lyricsActiveLineIdx = idx;
+  if (idx >= 0 && lyricsLineEls[idx]) {
+    var el = lyricsLineEls[idx];
+    addClass(el, 'now');
+    var box = $('lyricsBox');
+    var target = el.offsetTop - (box.clientHeight / 2) + (el.offsetHeight / 2);
+    var maxScroll = box.scrollHeight - box.clientHeight;
+    if (target < 0) { target = 0; }
+    if (maxScroll > 0 && target > maxScroll) { target = maxScroll; }
+    box.scrollTop = target;
+  }
+}
+
+function paintLyricsButton() {
+  var b = $('npLyrics');
+  if (!npUri) { b.className = 'heart hide'; return; }
+  b.className = 'heart' + (currentTab === 'lyrics' ? ' on' : '');
+}
+
+function toggleLyricsView() {
+  if (currentTab === 'lyrics') {
+    switchTab(lyricsPrevTab || 'queue');
+  } else {
+    lyricsPrevTab = currentTab;
+    switchTab('lyrics');
+  }
+  paintLyricsButton();
+}
+
+$('npLyrics').onclick = toggleLyricsView;
 
 /* ==================================================================
    ZU PLAYLIST HINZUFÜGEN
@@ -3213,7 +3376,8 @@ var navOriginTab = null;
 var TABS = {
   search:  { pane: 'paneSearch',  init: null },
   queue:   { pane: 'paneQueue',   init: loadQueue },
-  library: { pane: 'paneLibrary', init: function () { buildLibFilters(); loadLibrary(currentLibType); } }
+  library: { pane: 'paneLibrary', init: function () { buildLibFilters(); loadLibrary(currentLibType); } },
+  lyrics:  { pane: 'paneLyrics',  init: renderLyricsView }
 };
 
 function switchTab(name, pillName) {

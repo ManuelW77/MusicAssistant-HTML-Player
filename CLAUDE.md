@@ -23,6 +23,7 @@ Ein selbst gehosteter HTML-Dashboard-Controller für [Music Assistant](https://w
 - **Favoriten-Herz** sowohl im Now-Playing-Bereich als auch in jeder Detailansicht.
 - **Dark/Light Mode**: folgt standardmäßig der Systemeinstellung (`prefers-color-scheme`), umschaltbar über einen Button in der Kopfzeile; die manuelle Wahl wird in `localStorage` gemerkt und übersteuert das System dauerhaft (siehe „Dark/Light Mode“).
 - **Akzentfarbe**: über einen Farbkreis in der Kopfzeile aus einer festen Palette wählbar (Standard bleibt Gelb/Amber), Wahl wird in `localStorage` gemerkt (siehe „Akzentfarbe“).
+- **Songtexte**: über einen Button im Now-Playing-Bereich einblendbar; ersetzt dabei die komplette rechte Spalte (Bibliothek/Warteschlange/Suche). Synchronisierte Anzeige mit hervorgehobener aktueller Zeile, wenn MA `metadata.lrc_lyrics` liefert, sonst Klartext-Fallback über `metadata.lyrics` (siehe „Songtexte“).
 
 ## Wichtige Dateien
 
@@ -173,6 +174,19 @@ Der Nutzer kann die Akzentfarbe (Standard: Gelb/Amber `#f0a32e`) über einen Far
 - `deriveLightAccent(hex)` (RGB→HSL→RGB, alle Helfer ebenfalls im frühen `<head>`-Script) berechnet die Light-Theme-Variante automatisch, indem die Lightness auf 78 % skaliert wird – dieselbe Kontrastlogik, die auch dem handverlesenen Standard-Farbpaar (`#f0a32e`/`#c97f17`) zugrunde liegt. Reine Presets, keine Nutzereingabe, daher ohne weitere Validierung sicher.
 - `applyAccentOverride()` wird sowohl im frühen `<head>`-Script (FOUC-Vermeidung, gleiches Prinzip wie beim Theme) als auch von `setAccent()` im Hauptskript aufgerufen; beide Stellen teilen sich dieselbe globale Funktion statt Farb-Mathematik zu duplizieren.
 - Das Popover-Menü (`#accentMenu`, Swatches in `#accentSwatches`, gerendert von `renderAccentSwatches()`) folgt demselben Öffnen/Schließen-Muster wie `#stationMenu`/`#groupMenu` (siehe `document.addEventListener('click', …)` weiter unten in der Datei) – alle drei Menüs schließen sich gegenseitig beim Öffnen eines anderen.
+
+## Songtexte
+
+MA liefert Songtexte als ganz normale Felder im Track-Metadata-Objekt, ohne eigenen API-Befehl: `metadata.lyrics` (Klartext, unsynchronisiert) und `metadata.lrc_lyrics` (LRC-Format mit Zeitstempeln pro Zeile, `[mm:ss.xx]Text`, teils mehrere Zeitstempel pro Zeile). Beide Felder können `null` sein. Der Server sucht Lyrics im Hintergrund, sobald ein Titel in die Queue kommt, und liefert sie ggf. erst verzögert per `media_item_updated`-Event nach (Throttle ~30s) – sie können beim ersten Rendern eines Titels also noch fehlen.
+
+Ein Button (`#npLyrics`, in der `.titlerow` neben `#npAdd`/`#npHeart`) schaltet die Songtextanzeige um. Anders als die Detail-Tabs ist das **kein echter Tab-Pill**, sondern eine vierte, gleichberechtigte Pane (`#paneLyrics`) im `TABS`-Objekt – da kein `.tab`-Element `data-tab="lyrics"` trägt, bleibt beim Öffnen bewusst kein Pill markiert. `toggleLyricsView()` merkt sich beim Öffnen den vorher aktiven Tab in `lyricsPrevTab` und schaltet beim Schließen dorthin zurück (inklusive einer eventuell offenen Detailansicht, da `switchTab()` das ohnehin generisch handhabt).
+
+- Die Lyrics-Daten werden **nicht** aus `q.current_item.media_item.metadata` gelesen (kann veraltet sein, da der Server sie ja gerade verzögert nachliefert), sondern wie bei den Favoriten ausschließlich über `resolveItem()`/`music/item_by_uri` bezogen (`refreshNowLyrics()`), inklusive desselben Race-Guard-Musters wie `refreshNowFav()` (verwirft die Antwort, wenn der Titel inzwischen gewechselt hat).
+- `parseLrc()` ist ein kleiner ES5-Parser für das LRC-Format: extrahiert führende `[mm:ss.xx]`-Zeitstempel-Tags am Zeilenanfang (mehrere Tags pro Zeile ergeben mehrere Einträge mit identischem Text), überspringt Zeilen ohne Zeit-Tag (LRC-Kopfzeilen wie `[ar:...]`/`[ti:...]`) und sortiert das Ergebnis nach Zeit.
+- Die aktuell gesungene Zeile wird über `updateLyricsHighlight(pos)` hervorgehoben, aufgerufen aus `tick()` mit derselben interpolierten Position wie der Fortschrittsbalken (siehe „Fortschrittsbalken und der Beta-Bug“) – keine zweite Zeitbasis. Scrollen erfolgt manuell über `scrollTop`/`offsetTop`/`clientHeight`, nicht über `scrollIntoView()` mit Optionsobjekt, da Safari 9 nur dessen boolesche Form kennt.
+- Der Button bleibt immer sichtbar, sobald ein Titel läuft (`npUri` gesetzt) – unabhängig davon, ob Lyrics-Daten schon bekannt sind. Sonst würde er bei jedem Titelwechsel bis zu ~30s lang „hüpfen“; der Leerzustand („Keine Songtexte verfügbar“) wird stattdessen in der Pane selbst kommuniziert.
+- Die Songtextanzeige bleibt beim Titelwechsel offen und aktualisiert sich automatisch auf den neuen Titel (analog zu Queue/Bibliothek, die beim Titelwechsel auch nicht weggeklickt werden). `currentTab === 'lyrics'` ist dabei die einzige Zustandsquelle, kein zusätzliches Boolean-Flag.
+- Der `media_item_updated`-Zweig in `handleEvent()` ruft `refreshNowLyrics()` – anders als das bestehende, ungefilterte `refreshNowFav()` – nur auf, wenn `msg.object_id` der URI des aktuell laufenden Titels entspricht, da Lyrics-Refetches teurer sind und nur beim laufenden Titel Sinn ergeben.
 
 ## Favoriten-Asymmetrie
 
