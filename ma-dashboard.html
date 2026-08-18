@@ -706,7 +706,7 @@ html, body {
    bekommt so ein iPad oft wochenlang gar kein echtes visibilitychange/
    pageshow mehr - ohne Timer bliebe der Update-Check dann faktisch tot.
    ================================================================== */
-var APP_VERSION = '2026-08-18.2';
+var APP_VERSION = '2026-08-18.3';
 var UPDATE_CHECK_INTERVAL_MS = 10 * 60 * 1000;
 
 /* ==================================================================
@@ -1801,9 +1801,6 @@ function handleEvent(msg) {
   if (evt === 'media_item_updated' || evt === 'media_item_added' || evt === 'media_item_deleted') {
     /* Favoritenstand kann sich geändert haben - betrifft nur die Anzeige. */
     refreshNowFav();
-    /* Lyrics werden vom Server oft erst verzögert nachgeliefert; nur beim
-       aktuell laufenden Titel neu laden, nicht bei jedem Bibliotheks-Update. */
-    if (msg.object_id && msg.object_id === npUri) { refreshNowLyrics(); }
     return;
   }
 }
@@ -1825,14 +1822,13 @@ function adoptQueue(q) {
    ================================================================== */
 var lastCoverSrc = '';
 var npUri = null;          /* URI des laufenden Titels, für den Favoritenknopf */
+var npTrack = null;        /* volles Track-Objekt des laufenden Titels, fuer metadata/get_track_lyrics */
 var npFav = null;          /* aufgelöstes Bibliothekselement oder null */
 
-var npLyricsLoaded = false;      /* ob für npUri bereits eine Antwort da ist (lädt noch vs. bestätigt leer) */
-var npLyricsPlain = null;        /* metadata.lyrics (Klartext) oder null */
-var npLyricsLrc = null;          /* geparste metadata.lrc_lyrics, [{time, text}, ...] sortiert, oder null */
-var npLyricsSince = 0;           /* Date.now() vom Titelwechsel - Basis fuer die Kulanzfrist unten */
-var npLyricsGraceTimer = null;   /* einmaliger Timer, der nach LYRICS_GRACE_MS von "wird geladen" auf "keine Songtexte" umschaltet */
-var LYRICS_GRACE_MS = 45000;     /* etwas ueber dem dokumentierten ~30s-Throttle fuer MA-Metadaten-Updates */
+var npLyricsForUri = null;      /* welche URI die aktuell zwischengespeicherten npLyrics*-Werte betrifft */
+var npLyricsLoaded = false;      /* ob für npLyricsForUri bereits eine definitive Antwort da ist */
+var npLyricsPlain = null;        /* Lyrics-Klartext oder null */
+var npLyricsLrc = null;          /* geparste LRC-Lyrics, [{time, text}, ...] sortiert, oder null */
 var lyricsPrevTab = 'queue';     /* Tab, zu dem beim Schließen der Songtextansicht zurückgeschaltet wird */
 var lyricsActiveLineIdx = -1;    /* Index der aktuell hervorgehobenen LRC-Zeile */
 var lyricsLineEls = null;        /* DOM-Referenzen der gerenderten .lyric-line-Elemente */
@@ -1920,13 +1916,14 @@ function renderNow() {
 
   /* Favoritenknopf */
   var uri = media.uri || (mi && mi.uri) || null;
+  if (mi) { npTrack = mi; } /* haelt npTrack aktuell, auch falls mi kurz nach dem URI-Wechsel nachliefert */
   if (uri !== npUri) {
     npUri = uri;
+    npTrack = mi;
     npFav = null;
-    npLyricsSince = Date.now();
     paintNowHeart();
     refreshNowFav();
-    refreshNowLyrics();
+    if (currentTab === 'lyrics') { refreshNowLyrics(); }
   }
 
   /* Playlist-Plus-Knopf */
@@ -2280,33 +2277,34 @@ function parseLrc(raw) {
   return out;
 }
 
+/* metadata/get_track_lyrics ist ein synchroner On-Demand-Befehl (kein Scheduling/
+   Event-Umweg wie bei music/item_by_uri mit allow_update_metadata): der Server prueft
+   zuerst das mitgegebene Track-Objekt, holt bei Bibliothekstiteln sonst sofort per
+   Metadaten-Update nach bzw. befragt bei Fremd-Providern direkt die Lyrics-Provider
+   (LRCLIB/Genius/...) - das nutzt auch die offizielle MA-Weboberflaeche. Liefert
+   [lyrics, lrc_lyrics], beides moeglicherweise null. */
 function refreshNowLyrics() {
+  if (!npUri || !npTrack) {
+    npLyricsForUri = npUri;
+    npLyricsLoaded = true;
+    npLyricsPlain = null;
+    npLyricsLrc = null;
+    if (currentTab === 'lyrics') { renderLyricsView(); }
+    return;
+  }
+  if (npLyricsForUri === npUri) { return; }     /* schon geladen oder Anfrage laeuft bereits */
+  npLyricsForUri = npUri;
   npLyricsLoaded = false;
   npLyricsPlain = null;
   npLyricsLrc = null;
   lyricsActiveLineIdx = -1;
-  if (npLyricsGraceTimer) { clearTimeout(npLyricsGraceTimer); npLyricsGraceTimer = null; }
   if (currentTab === 'lyrics') { renderLyricsView(); }
-  if (!npUri) { return; }
   var want = npUri;
-  resolveItem(want, function (err, it) {
+  send('metadata/get_track_lyrics', { track: npTrack }, function (err, result) {
     if (want !== npUri) { return; }     /* Titel hat inzwischen gewechselt */
     npLyricsLoaded = true;
-    var md = (!err && it && it.metadata) || {};
-    npLyricsPlain = md.lyrics || null;
-    npLyricsLrc = parseLrc(md.lrc_lyrics);
-    /* Server sucht Lyrics im Hintergrund - eine leere erste Antwort heisst nicht
-       "keine Lyrics", sondern moeglicherweise nur "noch nicht fertig gesucht".
-       Erst nach der Kulanzfrist gilt das als endgueltig (siehe renderLyricsView). */
-    if (!npLyricsPlain && !npLyricsLrc) {
-      var remaining = LYRICS_GRACE_MS - (Date.now() - npLyricsSince);
-      if (remaining < 0) { remaining = 0; }
-      npLyricsGraceTimer = setTimeout(function () {
-        npLyricsGraceTimer = null;
-        if (want !== npUri) { return; }
-        if (currentTab === 'lyrics') { renderLyricsView(); }
-      }, remaining);
-    }
+    npLyricsPlain = (!err && result && result[0]) || null;
+    npLyricsLrc = parseLrc((!err && result && result[1]) || null);
     if (currentTab === 'lyrics') { renderLyricsView(); }
   });
 }
@@ -2346,7 +2344,6 @@ function renderLyricsView() {
     box.appendChild(plainEl);
     return;
   }
-  if ((Date.now() - npLyricsSince) < LYRICS_GRACE_MS) { renderHint(box, t('lyrics.loading')); return; }
   renderHint(box, t('lyrics.none'));
 }
 
@@ -3399,7 +3396,7 @@ var TABS = {
   search:  { pane: 'paneSearch',  init: null },
   queue:   { pane: 'paneQueue',   init: loadQueue },
   library: { pane: 'paneLibrary', init: function () { buildLibFilters(); loadLibrary(currentLibType); } },
-  lyrics:  { pane: 'paneLyrics',  init: renderLyricsView }
+  lyrics:  { pane: 'paneLyrics',  init: function () { refreshNowLyrics(); renderLyricsView(); } }
 };
 
 function switchTab(name, pillName) {
